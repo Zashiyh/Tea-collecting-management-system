@@ -233,7 +233,7 @@ export default function DashboardPage() {
             <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
                 <p className="mb-2 text-sm font-medium text-emerald-400">
-                  COOROONDUWATTE TEA
+                  COOROONDOOWATTE TEA
                 </p>
 
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">

@@ -86,7 +86,7 @@ export default function Sidebar({
 
             <div>
               <h1 className="text-sm font-bold tracking-wide text-white">
-                COOROONDUWATTE
+                COOROONDOOWATTE
               </h1>
               <p className="text-xs text-emerald-400">
                 TEA FACTORY

@@ -1,130 +1,180 @@
 "use client";
 
 import {
-  ArrowRight,
-  Leaf,
   MapPin,
   Users,
+  Scale,
+  Wallet,
+  ArrowRight,
 } from "lucide-react";
 
-export interface Area {
-  _id: string;
+interface Area {
+  _id?: string;
   areaId: string;
   name: string;
   description?: string;
-  status: "Active" | "Inactive";
+  status?: "Active" | "Inactive";
   supplierCount?: number;
   todayKg?: number;
   todayValue?: number;
+  totalKg?: number;
+  totalValue?: number;
 }
 
 interface AreasTableProps {
   areas: Area[];
-  onView: (area: Area) => void;
+  onView?: (area: Area) => void;
 }
 
 export default function AreasTable({
   areas,
   onView,
 }: AreasTableProps) {
+  function formatNumber(value = 0) {
+    return Number(value).toLocaleString("en-US", {
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function formatMoney(value = 0) {
+    return `Rs. ${Number(value).toLocaleString(
+      "en-US",
+      {
+        maximumFractionDigits: 2,
+      }
+    )}`;
+  }
+
   if (areas.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/10 bg-[#07140e] p-12 text-center">
+      <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-10 text-center">
         <MapPin
-          size={42}
-          className="mx-auto mb-4 text-gray-600"
+          size={32}
+          className="mx-auto text-slate-700"
         />
 
-        <h3 className="text-lg font-semibold text-white">
-          No collection areas
+        <h3 className="mt-4 font-semibold text-white">
+          No areas found
         </h3>
 
-        <p className="mt-1 text-sm text-gray-500">
-          Add your first tea leaf collection area.
+        <p className="mt-1 text-sm text-slate-500">
+          Add your first tea collection area.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {areas.map((area) => (
         <div
-          key={area._id}
-          className="group rounded-2xl border border-white/10 bg-[#07140e] p-5 transition duration-200 hover:border-emerald-500/30 hover:bg-[#091a11]"
+          key={area.areaId || area._id}
+          className="group overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] transition duration-200 hover:-translate-y-1 hover:border-emerald-500/30"
         >
-          {/* Area header */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 gap-3">
-              <div className="shrink-0 rounded-xl bg-emerald-500/10 p-3 text-emerald-400">
-                <MapPin size={22} />
+          {/* Header */}
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                  <MapPin size={21} />
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-emerald-400">
+                    {area.areaId}
+                  </p>
+
+                  <h3 className="mt-1 font-semibold text-white">
+                    {area.name}
+                  </h3>
+                </div>
               </div>
 
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-emerald-400">
-                  {area.areaId}
-                </p>
-
-                <h3 className="mt-1 truncate text-lg font-semibold text-white">
-                  {area.name}
-                </h3>
-              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                  area.status === "Inactive"
+                    ? "bg-red-500/10 text-red-400"
+                    : "bg-emerald-500/10 text-emerald-400"
+                }`}
+              >
+                {area.status || "Active"}
+              </span>
             </div>
 
-            <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-400">
-              {area.status}
-            </span>
-          </div>
+            {area.description && (
+              <p className="mt-4 line-clamp-2 text-xs leading-5 text-slate-500">
+                {area.description}
+              </p>
+            )}
 
-          {/* Description */}
-          {area.description && (
-            <p className="mt-4 line-clamp-2 text-sm text-gray-500">
-              {area.description}
-            </p>
-          )}
-
-          {/* Statistics */}
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-white/[0.03] p-3">
-              <div className="flex items-center gap-2 text-gray-500">
-                <Users size={15} />
-
-                <span className="text-xs">
+            {/* Stats */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-900/50 p-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Users size={14} />
                   Suppliers
-                </span>
+                </div>
+
+                <p className="mt-1 text-lg font-bold text-white">
+                  {area.supplierCount ?? 0}
+                </p>
               </div>
 
-              <p className="mt-1 text-lg font-semibold text-white">
-                {area.supplierCount ?? 0}
-              </p>
-            </div>
+              <div className="rounded-xl bg-slate-900/50 p-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Scale size={14} />
+                  Total KG
+                </div>
 
-            <div className="rounded-xl bg-white/[0.03] p-3">
-              <div className="flex items-center gap-2 text-gray-500">
-                <Leaf size={15} />
+                <p className="mt-1 text-lg font-bold text-white">
+                  {formatNumber(
+                    area.totalKg ?? area.todayKg ?? 0
+                  )}
+                </p>
+              </div>
 
-                <span className="text-xs">
+              <div className="rounded-xl bg-slate-900/50 p-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Scale size={14} />
                   Today
-                </span>
+                </div>
+
+                <p className="mt-1 text-lg font-bold text-emerald-400">
+                  {formatNumber(
+                    area.todayKg ?? 0
+                  )}{" "}
+                  KG
+                </p>
               </div>
 
-              <p className="mt-1 text-lg font-semibold text-white">
-                {area.todayKg ?? 0} KG
-              </p>
+              <div className="rounded-xl bg-slate-900/50 p-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Wallet size={14} />
+                  Value
+                </div>
+
+                <p className="mt-1 text-sm font-bold text-emerald-400">
+                  {formatMoney(
+                    area.totalValue ??
+                      area.todayValue ??
+                      0
+                  )}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* View button */}
+          {/* View Area */}
           <button
             type="button"
-            onClick={() => onView(area)}
-            className="mt-4 flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-emerald-400"
+            onClick={() => onView?.(area)}
+            className="flex w-full items-center justify-between border-t border-slate-800 bg-slate-900/20 px-5 py-3.5 text-sm font-medium text-slate-400 transition hover:bg-emerald-500/5 hover:text-emerald-400"
           >
-            View Area
+            <span>View Area</span>
 
             <ArrowRight
-              size={17}
-              className="transition-transform duration-200 group-hover:translate-x-1"
+              size={16}
+              className="transition-transform group-hover:translate-x-1"
             />
           </button>
         </div>

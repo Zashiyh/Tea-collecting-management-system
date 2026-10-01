@@ -1,546 +1,408 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  CalendarDays,
-  Download,
+  ChevronRight,
   Leaf,
   Plus,
-  Search,
-  Wallet,
-  Scale,
-  Users,
   RefreshCw,
+  Users,
+  Weight,
 } from "lucide-react";
 
+import Sidebar from "@/components/dashboard/Sidebar";
 import CollectionModal from "@/components/collections/CollectionModal";
 
-interface Collection {
-  _id: string;
-  collectionId: string;
-  date: string;
+interface Area {
   areaId: string;
-  areaName: string;
-  supplierId: string;
-  supplierName: string;
-  weightKg: number;
-  ratePerKg: number;
-  totalAmount: number;
-  notes?: string;
-}
-
-function getTodayDate() {
-  const now = new Date();
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  name: string;
+  description?: string;
+  status: "Active" | "Inactive";
+  supplierCount?: number;
+  totalKg?: number;
+  totalValue?: number;
+  todayKg?: number;
+  todayValue?: number;
+  latestCollectionDate?: string | null;
 }
 
 export default function CollectionsPage() {
-  const [collections, setCollections] = useState<
-    Collection[]
-  >([]);
-
+  const [areas, setAreas] = useState<Area[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-
-  const [search, setSearch] = useState("");
-
-  const [selectedDate, setSelectedDate] =
-    useState(getTodayDate());
-
   const [loading, setLoading] = useState(true);
-
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  async function fetchCollections() {
+  async function fetchAreas(showRefresh = false) {
     try {
-      setLoading(true);
+      if (showRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       setError("");
 
-      const response = await fetch(
-        `/api/collections?date=${encodeURIComponent(
-          selectedDate
-        )}`,
-        {
-          cache: "no-store",
-        }
-      );
+      const response = await fetch("/api/collections/areas", {
+        cache: "no-store",
+      });
 
-      const data = await response.json();
+      const text = await response.text();
 
-      if (!response.ok) {
+      let data: {
+        success?: boolean;
+        message?: string;
+        areas?: Area[];
+      };
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("API Response:", text);
+
         throw new Error(
-          data.message ||
-            "Failed to fetch collections"
+          `Collections API returned an invalid response (${response.status}).`
         );
       }
 
-      setCollections(data.collections || []);
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Failed to load collection areas"
+        );
+      }
+
+      setAreas(data.areas || []);
     } catch (error) {
-      console.error(
-        "Fetch collections error:",
-        error
-      );
+      console.error(error);
 
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to load collections"
+          : "Failed to load collection areas"
       );
-
-      setCollections([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
   useEffect(() => {
-    fetchCollections();
-  }, [selectedDate]);
+    fetchAreas();
+  }, []);
 
-  const filteredCollections = useMemo(() => {
-    const query = search.toLowerCase().trim();
+  function formatNumber(value: number) {
+    return new Intl.NumberFormat("en-LK").format(value || 0);
+  }
 
-    if (!query) {
-      return collections;
-    }
+  function formatCurrency(value: number) {
+    return `Rs. ${formatNumber(value)}`;
+  }
 
-    return collections.filter((collection) => {
-      return (
-        collection.supplierName
-          .toLowerCase()
-          .includes(query) ||
-        collection.supplierId
-          .toLowerCase()
-          .includes(query) ||
-        collection.collectionId
-          .toLowerCase()
-          .includes(query) ||
-        collection.areaName
-          .toLowerCase()
-          .includes(query)
-      );
-    });
-  }, [collections, search]);
+  function formatDate(date?: string | null) {
+    if (!date) return "-";
 
-  const totalKg = filteredCollections.reduce(
-    (sum, collection) =>
-      sum + Number(collection.weightKg || 0),
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(date));
+  }
+
+  const totalSuppliers = areas.reduce(
+    (sum, area) => sum + (area.supplierCount || 0),
     0
   );
 
-  const totalAmount = filteredCollections.reduce(
-    (sum, collection) =>
-      sum + Number(collection.totalAmount || 0),
+  const totalKg = areas.reduce(
+    (sum, area) => sum + (area.totalKg || 0),
     0
   );
 
-  const averageRate =
-    totalKg > 0 ? totalAmount / totalKg : 0;
-
-  const formattedDate = new Date(
-    `${selectedDate}T00:00:00`
-  ).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const totalValue = areas.reduce(
+    (sum, area) => sum + (area.totalValue || 0),
+    0
+  );
 
   return (
-    <div className="min-h-screen bg-[#020a06] text-white">
-      <main className="p-4 sm:p-6 lg:p-8">
-        <div className="mx-auto max-w-[1600px]">
-          {/* Header */}
-          <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+    <div className="min-h-screen bg-[#020b06] text-white">
+      <Sidebar />
+
+      <div className="lg:ml-64">
+        {/* Header */}
+        <header className="border-b border-white/10 bg-[#07140e] px-4 py-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between">
             <div>
-              <Link
-                href="/dashboard"
-                className="mb-4 inline-flex items-center gap-2 text-sm text-slate-500 transition hover:text-emerald-400"
-              >
-                <ArrowLeft size={16} />
-                Back to Dashboard
-              </Link>
+              <p className="text-xs uppercase tracking-wider text-emerald-400">
+                Cooroonduwatte Tea
+              </p>
 
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-emerald-600/10 p-3 text-emerald-400">
-                  <Leaf size={24} />
+              <h2 className="mt-1 text-lg font-semibold">
+                Tea Collection Management
+              </h2>
+            </div>
+
+            <div className="hidden text-right sm:block">
+              <p className="text-xs text-gray-500">
+                Collection Records
+              </p>
+
+              <p className="text-sm text-gray-400">
+                Area & Supplier Management
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <main className="p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-7xl">
+
+            {/* Back */}
+            <Link
+              href="/dashboard"
+              className="mb-5 inline-flex items-center gap-2 text-sm text-gray-500 transition hover:text-emerald-400"
+            >
+              <ArrowLeft size={16} />
+              Back to Dashboard
+            </Link>
+
+            {/* Title */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-400">
+                    <Leaf size={22} />
+                  </div>
+
+                  <div>
+                    <h1 className="text-2xl font-bold">
+                      Tea Collections
+                    </h1>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Manage daily tea leaf collections
+                    </p>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <h1 className="text-2xl font-bold sm:text-3xl">
-                    Tea Collections
-                  </h1>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => fetchAreas(true)}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#07140e] px-4 py-2.5 text-sm text-gray-300 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={refreshing ? "animate-spin" : ""}
+                  />
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    Record and monitor daily tea leaf
-                    collections.
+                  Refresh
+                </button>
+
+                <button
+                  onClick={() => setModalOpen(true)}
+                  className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium transition hover:bg-emerald-500"
+                >
+                  <Plus size={17} />
+
+                  Add Collection
+                </button>
+              </div>
+            </div>
+
+            {/* Small Summary Bar */}
+            <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-[#07140e]">
+              <div className="grid grid-cols-2 divide-x divide-white/10 sm:grid-cols-4">
+                
+                <div className="px-4 py-3 sm:px-5">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-600">
+                    Areas
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold">
+                    {areas.length}
                   </p>
                 </div>
-              </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-500"
-            >
-              <Plus size={18} />
-              Add Collection
-            </button>
-          </div>
+                <div className="px-4 py-3 sm:px-5">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-600">
+                    Suppliers
+                  </p>
 
-          {/* Date + Search */}
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row">
-            <div className="relative">
-              <CalendarDays
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400"
-              />
-
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(event) =>
-                  setSelectedDate(event.target.value)
-                }
-                className="rounded-xl border border-slate-800 bg-[#07140d] py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-emerald-600"
-              />
-            </div>
-
-            <div className="relative flex-1">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-
-              <input
-                type="text"
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="Search supplier, area or collection ID..."
-                className="w-full rounded-xl border border-slate-800 bg-[#07140d] py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-600"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={fetchCollections}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-[#07140d] px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white disabled:opacity-50"
-            >
-              <RefreshCw
-                size={17}
-                className={
-                  loading ? "animate-spin" : ""
-                }
-              />
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-[#07140d] px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
-            >
-              <Download size={17} />
-              Export
-            </button>
-          </div>
-
-          {/* Selected Date */}
-          <div className="mb-5">
-            <p className="text-sm text-slate-500">
-              Collection for
-            </p>
-
-            <h2 className="mt-1 text-xl font-semibold text-white">
-              {formattedDate}
-            </h2>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-400 sm:flex-row sm:items-center sm:justify-between">
-              <span>{error}</span>
-
-              <button
-                type="button"
-                onClick={fetchCollections}
-                className="rounded-lg border border-red-500/20 px-3 py-2 text-red-300 transition hover:bg-red-500/10"
-              >
-                Try Again
-              </button>
-            </div>
-          )}
-
-          {/* Stats */}
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {/* Total KG */}
-            <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Total Collection
-                </p>
-
-                <div className="rounded-xl bg-emerald-600/10 p-2.5 text-emerald-400">
-                  <Scale size={20} />
-                </div>
-              </div>
-
-              <p className="mt-3 text-2xl font-bold text-white">
-                {totalKg.toLocaleString()} KG
-              </p>
-            </div>
-
-            {/* Suppliers */}
-            <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Suppliers
-                </p>
-
-                <div className="rounded-xl bg-emerald-600/10 p-2.5 text-emerald-400">
-                  <Users size={20} />
-                </div>
-              </div>
-
-              <p className="mt-3 text-2xl font-bold text-white">
-                {filteredCollections.length}
-              </p>
-
-              <p className="mt-1 text-xs text-slate-500">
-                Collection records
-              </p>
-            </div>
-
-            {/* Average Rate */}
-            <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Average Rate
-                </p>
-
-                <div className="rounded-xl bg-emerald-600/10 p-2.5 text-emerald-400">
-                  <Wallet size={20} />
-                </div>
-              </div>
-
-              <p className="mt-3 text-2xl font-bold text-white">
-                Rs.{" "}
-                {averageRate.toLocaleString("en-LK", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-
-              <p className="mt-1 text-xs text-slate-500">
-                per KG
-              </p>
-            </div>
-
-            {/* Total Value */}
-            <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Total Value
-                </p>
-
-                <div className="rounded-xl bg-emerald-600/10 p-2.5 text-emerald-400">
-                  <Wallet size={20} />
-                </div>
-              </div>
-
-              <p className="mt-3 text-2xl font-bold text-emerald-400">
-                Rs.{" "}
-                {totalAmount.toLocaleString("en-LK", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d]">
-            <div className="border-b border-slate-800 p-5">
-              <h2 className="font-semibold text-white">
-                Daily Collection Records
-              </h2>
-
-              <p className="mt-1 text-xs text-slate-500">
-                {filteredCollections.length} records for{" "}
-                {formattedDate}
-              </p>
-            </div>
-
-            {loading ? (
-              <div className="py-20 text-center">
-                <RefreshCw
-                  size={30}
-                  className="mx-auto animate-spin text-emerald-500"
-                />
-
-                <p className="mt-4 text-sm text-slate-500">
-                  Loading collection records...
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1000px] text-left">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-500">
-                        <th className="px-5 py-4 font-medium">
-                          Collection ID
-                        </th>
-
-                        <th className="px-5 py-4 font-medium">
-                          Area
-                        </th>
-
-                        <th className="px-5 py-4 font-medium">
-                          Supplier
-                        </th>
-
-                        <th className="px-5 py-4 font-medium">
-                          Weight
-                        </th>
-
-                        <th className="px-5 py-4 font-medium">
-                          Rate / KG
-                        </th>
-
-                        <th className="px-5 py-4 font-medium">
-                          Total
-                        </th>
-
-                        <th className="px-5 py-4 font-medium">
-                          Date
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {filteredCollections.map(
-                        (collection) => (
-                          <tr
-                            key={collection._id}
-                            className="border-b border-slate-800/70 transition hover:bg-slate-900/40"
-                          >
-                            {/* ID */}
-                            <td className="px-5 py-4">
-                              <span className="rounded-md bg-slate-900 px-2 py-1 text-xs text-slate-400">
-                                {collection.collectionId}
-                              </span>
-                            </td>
-
-                            {/* Area */}
-                            <td className="px-5 py-4">
-                              <p className="font-medium text-emerald-400">
-                                {collection.areaName}
-                              </p>
-
-                              <p className="mt-1 text-xs text-slate-600">
-                                {collection.areaId}
-                              </p>
-                            </td>
-
-                            {/* Supplier */}
-                            <td className="px-5 py-4">
-                              <p className="font-medium text-white">
-                                {collection.supplierName}
-                              </p>
-
-                              <p className="mt-1 text-xs text-slate-500">
-                                {collection.supplierId}
-                              </p>
-                            </td>
-
-                            {/* Weight */}
-                            <td className="px-5 py-4 font-semibold text-white">
-                              {Number(
-                                collection.weightKg
-                              ).toLocaleString()}{" "}
-                              KG
-                            </td>
-
-                            {/* Rate */}
-                            <td className="px-5 py-4 text-slate-400">
-                              Rs.{" "}
-                              {Number(
-                                collection.ratePerKg
-                              ).toLocaleString()}
-                            </td>
-
-                            {/* Total */}
-                            <td className="px-5 py-4 font-semibold text-emerald-400">
-                              Rs.{" "}
-                              {Number(
-                                collection.totalAmount
-                              ).toLocaleString("en-LK", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </td>
-
-                            {/* Date */}
-                            <td className="px-5 py-4 text-slate-400">
-                              {new Date(
-                                `${selectedDate}T00:00:00`
-                              ).toLocaleDateString(
-                                "en-GB"
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
+                  <p className="mt-1 text-lg font-semibold">
+                    {formatNumber(totalSuppliers)}
+                  </p>
                 </div>
 
-                {filteredCollections.length === 0 && (
-                  <div className="py-16 text-center">
-                    <Leaf
-                      size={32}
-                      className="mx-auto text-slate-700"
-                    />
+                <div className="px-4 py-3 sm:px-5">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-600">
+                    Total KG
+                  </p>
 
-                    <p className="mt-3 text-sm text-slate-500">
-                      No collection records found for{" "}
-                      {formattedDate}.
-                    </p>
+                  <p className="mt-1 text-lg font-semibold text-emerald-400">
+                    {formatNumber(totalKg)} KG
+                  </p>
+                </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setModalOpen(true)
-                      }
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
-                    >
-                      <Plus size={17} />
-                      Add Collection
-                    </button>
-                  </div>
-                )}
-              </>
+                <div className="px-4 py-3 sm:px-5">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-600">
+                    Total Value
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold">
+                    {formatCurrency(totalValue)}
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="mt-5 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                {error}
+              </div>
             )}
-          </div>
-        </div>
-      </main>
 
-      {/* Add Collection Modal */}
+            {/* Collection Results */}
+            <div className="mt-7">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">
+                  Collection Areas
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-600">
+                  Select an area to view its suppliers and collection history.
+                </p>
+              </div>
+
+              {loading ? (
+                <div className="py-12 text-center">
+                  <RefreshCw
+                    size={26}
+                    className="mx-auto animate-spin text-emerald-400"
+                  />
+
+                  <p className="mt-3 text-sm text-gray-500">
+                    Loading collections...
+                  </p>
+                </div>
+              ) : areas.length === 0 ? (
+                <div className="border border-dashed border-white/10 py-12 text-center">
+                  <Leaf
+                    size={30}
+                    className="mx-auto text-gray-700"
+                  />
+
+                  <p className="mt-3 text-sm text-gray-500">
+                    No collection areas found.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {areas.map((area) => (
+                    <Link
+                      key={area.areaId}
+                      href={`/collections/areas/${area.areaId}`}
+                      className="group block"
+                    >
+                      {/* Area Bar */}
+                      <div className="flex min-h-[72px] items-center gap-4 rounded-xl border border-white/10 bg-[#07140e] px-4 py-3 transition hover:border-emerald-500/40 hover:bg-[#091b11] sm:px-5">
+
+                        {/* Icon */}
+                        <div className="hidden rounded-lg bg-emerald-500/10 p-2.5 text-emerald-400 sm:block">
+                          <Leaf size={19} />
+                        </div>
+
+                        {/* Area */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="truncate text-sm font-semibold text-white sm:text-base">
+                              {area.name}
+                            </h3>
+
+                            <span className="hidden text-[10px] text-gray-600 sm:inline">
+                              {area.areaId}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                            <Users size={13} />
+
+                            <span>
+                              {area.supplierCount || 0} suppliers
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Today */}
+                        <div className="hidden min-w-[100px] text-right sm:block">
+                          <p className="text-[10px] uppercase tracking-wide text-gray-600">
+                            Today
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold text-emerald-400">
+                            {formatNumber(area.todayKg || 0)} KG
+                          </p>
+                        </div>
+
+                        {/* Total */}
+                        <div className="hidden min-w-[110px] text-right md:block">
+                          <p className="text-[10px] uppercase tracking-wide text-gray-600">
+                            Total
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold">
+                            {formatNumber(area.totalKg || 0)} KG
+                          </p>
+                        </div>
+
+                        {/* Value */}
+                        <div className="hidden min-w-[120px] text-right lg:block">
+                          <p className="text-[10px] uppercase tracking-wide text-gray-600">
+                            Value
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold text-gray-300">
+                            {formatCurrency(area.totalValue || 0)}
+                          </p>
+                        </div>
+
+                        {/* Mobile KG */}
+                        <div className="text-right sm:hidden">
+                          <p className="text-[10px] text-gray-600">
+                            Today
+                          </p>
+
+                          <p className="mt-1 text-xs font-semibold text-emerald-400">
+                            {formatNumber(area.todayKg || 0)} KG
+                          </p>
+                        </div>
+
+                        {/* Arrow */}
+                        <ChevronRight
+                          size={18}
+                          className="shrink-0 text-gray-600 transition group-hover:translate-x-0.5 group-hover:text-emerald-400"
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Add Collection */}
       <CollectionModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreated={() => {
           setModalOpen(false);
-          fetchCollections();
+          fetchAreas(true);
         }}
       />
     </div>

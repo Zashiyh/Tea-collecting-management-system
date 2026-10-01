@@ -10,9 +10,18 @@ import {
 } from "lucide-react";
 
 import AreaModal from "@/components/areas/AreaModal";
-import AreasTable, {
-  Area,
-} from "@/components/areas/AreasTable";
+import AreasTable from "@/components/areas/AreasTable";
+
+interface Area {
+  _id?: string;
+  areaId: string;
+  name: string;
+  description?: string;
+  status: "Active" | "Inactive";
+  supplierCount?: number;
+  todayKg?: number;
+  todayValue?: number;
+}
 
 export default function AreasPage() {
   const [areas, setAreas] = useState<Area[]>([]);
@@ -60,19 +69,14 @@ export default function AreasPage() {
     const searchValue = search.toLowerCase();
 
     return (
-      area.name
-        .toLowerCase()
-        .includes(searchValue) ||
-      area.areaId
-        .toLowerCase()
-        .includes(searchValue)
+      area.name.toLowerCase().includes(searchValue) ||
+      area.areaId.toLowerCase().includes(searchValue)
     );
   });
 
   return (
     <main className="min-h-screen bg-[#020b06] p-4 text-white md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-
         {/* Back Button */}
         <Link
           href="/dashboard"
@@ -112,6 +116,7 @@ export default function AreasPage() {
 
         {/* Summary Cards */}
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {/* Total Areas */}
           <div className="rounded-2xl border border-white/10 bg-[#07140e] p-5">
             <p className="text-sm text-gray-500">
               Total Areas
@@ -122,6 +127,7 @@ export default function AreasPage() {
             </p>
           </div>
 
+          {/* Active Areas */}
           <div className="rounded-2xl border border-white/10 bg-[#07140e] p-5">
             <p className="text-sm text-gray-500">
               Active Areas
@@ -136,6 +142,7 @@ export default function AreasPage() {
             </p>
           </div>
 
+          {/* Total Suppliers */}
           <div className="rounded-2xl border border-white/10 bg-[#07140e] p-5">
             <p className="text-sm text-gray-500">
               Total Suppliers

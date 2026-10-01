@@ -19,9 +19,7 @@ export async function GET() {
 
     const today = getSriLankaDateString();
 
-    const todayStart = new Date(
-      `${today}T00:00:00+05:30`
-    );
+    const todayStart = new Date(`${today}T00:00:00+05:30`);
 
     const tomorrowStart = new Date(
       todayStart.getTime() + 24 * 60 * 60 * 1000
@@ -37,64 +35,62 @@ export async function GET() {
       areas.map(async (area) => {
         const suppliers = await Supplier.find({
           areaId: area.areaId,
+          status: "Active",
         })
           .select("supplierId name")
           .lean();
 
-        const totalStats =
-          await TeaCollection.aggregate([
-            {
-              $match: {
-                areaId: area.areaId,
+        const totalStats = await TeaCollection.aggregate([
+          {
+            $match: {
+              areaId: area.areaId,
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalKg: {
+                $sum: "$weightKg",
+              },
+              totalValue: {
+                $sum: "$totalAmount",
               },
             },
-            {
-              $group: {
-                _id: null,
-                totalKg: {
-                  $sum: "$weightKg",
-                },
-                totalValue: {
-                  $sum: "$totalAmount",
-                },
-              },
-            },
-          ]);
+          },
+        ]);
 
-        const todayStats =
-          await TeaCollection.aggregate([
-            {
-              $match: {
-                areaId: area.areaId,
-                date: {
-                  $gte: todayStart,
-                  $lt: tomorrowStart,
-                },
+        const todayStats = await TeaCollection.aggregate([
+          {
+            $match: {
+              areaId: area.areaId,
+              date: {
+                $gte: todayStart,
+                $lt: tomorrowStart,
               },
             },
-            {
-              $group: {
-                _id: null,
-                todayKg: {
-                  $sum: "$weightKg",
-                },
-                todayValue: {
-                  $sum: "$totalAmount",
-                },
+          },
+          {
+            $group: {
+              _id: null,
+              todayKg: {
+                $sum: "$weightKg",
+              },
+              todayValue: {
+                $sum: "$totalAmount",
               },
             },
-          ]);
+          },
+        ]);
 
-        const latestCollection =
-          await TeaCollection.findOne({
-            areaId: area.areaId,
+        const latestCollection = await TeaCollection.findOne({
+          areaId: area.areaId,
+        })
+          .sort({
+            date: -1,
+            createdAt: -1,
           })
-            .sort({
-              date: -1,
-              createdAt: -1,
-            })
-            .select("date")
-            .lean();
+          .select("date")
+          .lean();
 
         return {
           areaId: area.areaId,
@@ -104,17 +100,11 @@ export async function GET() {
 
           supplierCount: suppliers.length,
 
-          totalKg:
-            totalStats[0]?.totalKg || 0,
+          totalKg: totalStats[0]?.totalKg || 0,
+          totalValue: totalStats[0]?.totalValue || 0,
 
-          totalValue:
-            totalStats[0]?.totalValue || 0,
-
-          todayKg:
-            todayStats[0]?.todayKg || 0,
-
-          todayValue:
-            todayStats[0]?.todayValue || 0,
+          todayKg: todayStats[0]?.todayKg || 0,
+          todayValue: todayStats[0]?.todayValue || 0,
 
           latestCollectionDate:
             latestCollection?.date || null,
@@ -127,10 +117,7 @@ export async function GET() {
       areas: result,
     });
   } catch (error) {
-    console.error(
-      "GET /api/collections/areas ERROR:",
-      error
-    );
+    console.error("GET /api/collections/areas ERROR:", error);
 
     return NextResponse.json(
       {
