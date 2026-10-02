@@ -99,27 +99,35 @@ export async function GET(
       }
 
       supplier.totalKg += collection.weightKg;
-      supplier.totalValue += collection.totalAmount;
+
+      // totalAmount is optional in TeaCollection
+      supplier.totalValue +=
+        collection.totalAmount ?? 0;
+
       supplier.collectionCount += 1;
 
       supplier.collections.push(collection);
     }
 
     // Convert Map to array
-    const supplierResults = Array.from(
-      supplierMap.values()
-    );
+    const supplierResults =
+      Array.from(supplierMap.values());
 
     // Area totals
     const totalKg = collections.reduce(
-      (total, collection) =>
-        total + collection.weightKg,
+      (
+        total: number,
+        collection: (typeof collections)[number]
+      ) => total + collection.weightKg,
       0
     );
 
     const totalValue = collections.reduce(
-      (total, collection) =>
-        total + collection.totalAmount,
+      (
+        total: number,
+        collection: (typeof collections)[number]
+      ) =>
+        total + (collection.totalAmount ?? 0),
       0
     );
 

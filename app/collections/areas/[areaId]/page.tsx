@@ -1,349 +1,38 @@
-import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import Area from "@/models/Area";
-import DailyAreaCollection from "@/models/DailyAreaCollection";
+"use client";
 
-interface RouteContext {
-  params: Promise<{
-    collectionId: string;
-  }>;
-}
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
-function getSriLankaDayRange(dateString: string) {
-  const start = new Date(
-    `${dateString}T00:00:00+05:30`
+export default function CollectionAreaPage() {
+  const params = useParams<{ areaId: string }>();
+  const areaId = params.areaId;
+
+  return (
+    <main className="min-h-screen bg-[#07100b] px-4 py-8 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <Link
+          href="/collections"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
+        >
+          <ArrowLeft size={18} />
+          Back to Collections
+        </Link>
+
+        <div className="rounded-2xl border border-white/10 bg-[#0d1811] p-6">
+          <h1 className="text-2xl font-semibold">
+            Area Collection
+          </h1>
+
+          <p className="mt-2 text-sm text-gray-400">
+            Area ID: {areaId}
+          </p>
+
+          <p className="mt-4 text-sm text-gray-500">
+            Collection area details will be displayed here.
+          </p>
+        </div>
+      </div>
+    </main>
   );
-
-  const end = new Date(
-    start.getTime() + 24 * 60 * 60 * 1000
-  );
-
-  return {
-    start,
-    end,
-  };
-}
-
-/* =========================
-   GET SINGLE COLLECTION
-========================= */
-
-export async function GET(
-  request: Request,
-  context: RouteContext
-) {
-  try {
-    await connectDB();
-
-    const { collectionId } =
-      await context.params;
-
-    const collection =
-      await DailyAreaCollection.findOne({
-        collectionId,
-      }).lean();
-
-    if (!collection) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Collection not found",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      collection,
-    });
-  } catch (error) {
-    console.error(
-      "GET collection ERROR:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to load collection",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
-}
-
-/* =========================
-   UPDATE COLLECTION
-========================= */
-
-export async function PATCH(
-  request: Request,
-  context: RouteContext
-) {
-  try {
-    await connectDB();
-
-    const { collectionId } =
-      await context.params;
-
-    const body = await request.json();
-
-    const date = String(
-      body.date || ""
-    ).trim();
-
-    const areaId = String(
-      body.areaId || ""
-    ).trim();
-
-    const totalKg = Number(
-      body.totalKg
-    );
-
-    const notes = String(
-      body.notes || ""
-    ).trim();
-
-    /* =========================
-       VALIDATION
-    ========================= */
-
-    if (!date) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Collection date is required",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (!areaId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Area is required",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (
-      !Number.isFinite(totalKg) ||
-      totalKg <= 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Total tea KG must be greater than 0",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    /* =========================
-       FIND COLLECTION
-    ========================= */
-
-    const collection =
-      await DailyAreaCollection.findOne({
-        collectionId,
-      });
-
-    if (!collection) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Collection not found",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    /* =========================
-       FIND AREA
-    ========================= */
-
-    const area =
-      await Area.findOne({
-        areaId,
-        status: "Active",
-      }).lean();
-
-    if (!area) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Active area not found",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    /* =========================
-       CHECK DUPLICATE DATE + AREA
-       EXCLUDING CURRENT RECORD
-    ========================= */
-
-    const {
-      start,
-      end,
-    } = getSriLankaDayRange(date);
-
-    const duplicate =
-      await DailyAreaCollection.findOne({
-        areaId,
-        date: {
-          $gte: start,
-          $lt: end,
-        },
-        collectionId: {
-          $ne: collectionId,
-        },
-      });
-
-    if (duplicate) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "A collection already exists for this area and date.",
-        },
-        {
-          status: 409,
-        }
-      );
-    }
-
-    /* =========================
-       UPDATE
-    ========================= */
-
-    collection.date = start;
-
-    collection.areaId =
-      area.areaId;
-
-    collection.areaName =
-      area.name;
-
-    collection.totalKg =
-      totalKg;
-
-    collection.notes =
-      notes;
-
-    collection.differenceKg =
-      totalKg -
-      collection.factoryWeightKg;
-
-    await collection.save();
-
-    return NextResponse.json({
-      success: true,
-      message:
-        "Collection updated successfully",
-      collection,
-    });
-  } catch (error) {
-    console.error(
-      "PATCH collection ERROR:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to update collection",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
-}
-
-/* =========================
-   DELETE COLLECTION
-========================= */
-
-export async function DELETE(
-  request: Request,
-  context: RouteContext
-) {
-  try {
-    await connectDB();
-
-    const { collectionId } =
-      await context.params;
-
-    const collection =
-      await DailyAreaCollection.findOne({
-        collectionId,
-      });
-
-    if (!collection) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Collection not found",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    await DailyAreaCollection.deleteOne({
-      collectionId,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message:
-        "Collection deleted successfully",
-    });
-  } catch (error) {
-    console.error(
-      "DELETE collection ERROR:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete collection",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
 }
