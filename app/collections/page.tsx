@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Database,
@@ -125,15 +126,12 @@ export default function CollectionsPage() {
      FORMAT DATE
   ===================================================== */
 
-  function formatDate(
-    value: string
-  ) {
+  function formatDate(value: string) {
     if (!value) {
       return "-";
     }
 
-    const date =
-      new Date(value);
+    const date = new Date(value);
 
     if (
       Number.isNaN(
@@ -157,9 +155,7 @@ export default function CollectionsPage() {
      FORMAT NUMBER
   ===================================================== */
 
-  function formatNumber(
-    value: number
-  ) {
+  function formatNumber(value: number) {
     return Number(
       value || 0
     ).toLocaleString(
@@ -246,10 +242,6 @@ export default function CollectionsPage() {
         );
       }
 
-      /* --------------------------------
-         Remove immediately from UI
-      -------------------------------- */
-
       setCollections(
         (current) =>
           current.filter(
@@ -258,10 +250,6 @@ export default function CollectionsPage() {
               collection.collectionId
           )
       );
-
-      /* --------------------------------
-         Sync with database
-      -------------------------------- */
 
       await loadCollections();
     } catch (error) {
@@ -307,6 +295,21 @@ export default function CollectionsPage() {
   return (
     <main className="min-h-screen bg-[#020a06] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
+
+        {/* =================================================
+            BACK BUTTON
+        ================================================= */}
+
+        <Link
+          href="/dashboard"
+          className="mb-5 inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-[#07140d] px-4 py-2.5 text-sm font-medium text-slate-400 transition hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-emerald-400"
+        >
+          <ArrowLeft size={17} />
+
+          <span>
+            Back to Dashboard
+          </span>
+        </Link>
 
         {/* =================================================
             HEADER
@@ -380,6 +383,7 @@ export default function CollectionsPage() {
 
               <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
                 <div className="flex items-center gap-3">
+
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                     <Database size={19} />
                   </div>
@@ -456,6 +460,7 @@ export default function CollectionsPage() {
 
         {loading && (
           <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-12 text-center">
+
             <Loader2
               size={30}
               className="mx-auto animate-spin text-emerald-400"
@@ -525,9 +530,7 @@ export default function CollectionsPage() {
                       className="group overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] transition duration-200 hover:-translate-y-1 hover:border-emerald-500/30"
                     >
 
-                      {/* =================================================
-                          CARD HEADER
-                      ================================================= */}
+                      {/* CARD HEADER */}
 
                       <div className="p-5">
 
@@ -548,6 +551,7 @@ export default function CollectionsPage() {
                             </h3>
 
                             <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+
                               <CalendarDays
                                 size={14}
                               />
@@ -560,7 +564,7 @@ export default function CollectionsPage() {
                             </div>
                           </div>
 
-                          {/* Actions */}
+                          {/* ACTIONS */}
 
                           <div className="flex items-center gap-1">
 
@@ -612,15 +616,14 @@ export default function CollectionsPage() {
                           </div>
                         </div>
 
-                        {/* =================================================
-                            WEIGHTS
-                        ================================================= */}
+                        {/* WEIGHTS */}
 
                         <div className="mt-5 grid grid-cols-2 gap-3">
 
-                          {/* Tea Weight */}
+                          {/* Field Weight */}
 
                           <div className="rounded-xl bg-slate-900/50 p-3">
+
                             <p className="text-xs text-slate-500">
                               Field Weight
                             </p>
@@ -638,6 +641,7 @@ export default function CollectionsPage() {
                           {/* Factory Weight */}
 
                           <div className="rounded-xl bg-slate-900/50 p-3">
+
                             <p className="text-xs text-slate-500">
                               Factory Weight
                             </p>
@@ -651,12 +655,9 @@ export default function CollectionsPage() {
                               </span>
                             </p>
                           </div>
-
                         </div>
 
-                        {/* =================================================
-                            DIFFERENCE
-                        ================================================= */}
+                        {/* DIFFERENCE */}
 
                         <div className="mt-3 rounded-xl bg-slate-900/50 p-3">
 
@@ -692,10 +693,11 @@ export default function CollectionsPage() {
                           </div>
                         </div>
 
-                        {/* Notes */}
+                        {/* NOTES */}
 
                         {collection.notes && (
                           <div className="mt-3 rounded-xl bg-slate-900/30 p-3">
+
                             <p className="text-xs text-slate-500">
                               Notes
                             </p>
@@ -707,12 +709,9 @@ export default function CollectionsPage() {
                             </p>
                           </div>
                         )}
-
                       </div>
 
-                      {/* =================================================
-                          VIEW COLLECTION
-                      ================================================= */}
+                      {/* VIEW COLLECTION */}
 
                       <Link
                         href={`/collections/${encodeURIComponent(

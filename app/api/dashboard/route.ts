@@ -1,587 +1,347 @@
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
-
 import Area from "@/models/Area";
 import Supplier from "@/models/Supplier";
 import DailyAreaCollection from "@/models/DailyAreaCollection";
-import SupplierTeaCollection from "@/models/SupplierTeaCollection";
 
 /* =====================================================
    SRI LANKA DATE HELPERS
 ===================================================== */
 
-function getSriLankaDate(
-  date = new Date()
-) {
-  return new Intl.DateTimeFormat(
-    "en-CA",
-    {
-      timeZone: "Asia/Colombo",
-    }
-  ).format(date);
+function getTodaySriLanka(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year =
+    parts.find((part) => part.type === "year")?.value ?? "";
+
+  const month =
+    parts.find((part) => part.type === "month")?.value ?? "";
+
+  const day =
+    parts.find((part) => part.type === "day")?.value ?? "";
+
+  return `${year}-${month}-${day}`;
 }
 
-function getSriLankaDateParts(
-  date = new Date()
-) {
-  const formatter =
-    new Intl.DateTimeFormat(
-      "en-US",
-      {
-        timeZone: "Asia/Colombo",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }
-    );
+/* =====================================================
+   CREATE SRI LANKA DAY RANGE
+===================================================== */
 
-  const parts =
-    formatter.formatToParts(date);
-
-  const year = Number(
-    parts.find(
-      (part) =>
-        part.type === "year"
-    )?.value
+function getSriLankaDayRange(dateString: string) {
+  const start = new Date(
+    `${dateString}T00:00:00+05:30`
   );
 
-  const month = Number(
-    parts.find(
-      (part) =>
-        part.type === "month"
-    )?.value
+  const end = new Date(
+    `${dateString}T00:00:00+05:30`
   );
 
-  const day = Number(
-    parts.find(
-      (part) =>
-        part.type === "day"
-    )?.value
+  end.setTime(
+    end.getTime() + 24 * 60 * 60 * 1000
   );
 
   return {
-    year,
-    month,
-    day,
+    start,
+    end,
   };
-}
-
-function sriLankaDateToUTC(
-  year: number,
-  month: number,
-  day: number
-) {
-  return new Date(
-    Date.UTC(
-      year,
-      month - 1,
-      day,
-      0,
-      0,
-      0
-    ) -
-      5.5 *
-        60 *
-        60 *
-        1000
-  );
-}
-
-function addDays(
-  date: Date,
-  days: number
-) {
-  const result =
-    new Date(date);
-
-  result.setUTCDate(
-    result.getUTCDate() + days
-  );
-
-  return result;
 }
 
 /* =====================================================
    DASHBOARD GET
 ===================================================== */
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    /* =================================================
+       DATABASE
+    ================================================= */
+
     await connectDB();
 
-    const now =
-      new Date();
+    /* =================================================
+       SELECTED DATE
+    ================================================= */
+
+    const { searchParams } =
+      new URL(request.url);
+
+    const requestedDate =
+      searchParams.get("date");
+
+    const selectedDate =
+      requestedDate &&
+      /^\d{4}-\d{2}-\d{2}$/.test(
+        requestedDate
+      )
+        ? requestedDate
+        : getTodaySriLanka();
 
     const {
-      year,
-      month,
-      day,
+      start,
+      end,
     } =
-      getSriLankaDateParts(
-        now
+      getSriLankaDayRange(
+        selectedDate
       );
+
+    console.log(
+      "DASHBOARD DATE:",
+      selectedDate
+    );
+
+    console.log(
+      "DASHBOARD START:",
+      start.toISOString()
+    );
+
+    console.log(
+      "DASHBOARD END:",
+      end.toISOString()
+    );
 
     /* =================================================
-       DATE RANGES
+       GET ALL ACTIVE AREAS
     ================================================= */
 
-    const todayStart =
-      sriLankaDateToUTC(
-        year,
-        month,
-        day
-      );
-
-    const tomorrowStart =
-      addDays(
-        todayStart,
-        1
-      );
-
-    const monthStart =
-      sriLankaDateToUTC(
-        year,
-        month,
-        1
-      );
-
-    const nextMonthStart =
-      month === 12
-        ? sriLankaDateToUTC(
-            year + 1,
-            1,
-            1
-          )
-        : sriLankaDateToUTC(
-            year,
-            month + 1,
-            1
-          );
-
-    const sevenDaysAgo =
-      addDays(
-        todayStart,
-        -6
-      );
-
-    /* =================================================
-       TODAY'S AREA COLLECTION
-    ================================================= */
-
-    const todayCollections =
-      await DailyAreaCollection.find(
-        {
-          date: {
-            $gte: todayStart,
-            $lt: tomorrowStart,
-          },
-        }
-      )
+    const areas =
+      await Area.find({
+        status: "Active",
+      })
         .sort({
-          date: -1,
+          name: 1,
         })
         .lean();
 
-    /*
-     * Main collection is area-wise.
-     *
-     * Example:
-     * Area 1 = 5,000 KG
-     * Area 2 = 20,000 KG
-     */
-
-    const todayKg =
-      todayCollections.reduce(
-        (sum, item) =>
-          sum +
-          Number(
-            item.totalKg || 0
-          ),
-        0
-      );
-
-    const todayAreaIds =
-      new Set(
-        todayCollections.map(
-          (item) =>
-            item.areaId
-        )
-      );
-
-    const todayAreas =
-      todayAreaIds.size;
+    console.log(
+      "ACTIVE AREAS:",
+      areas.length
+    );
 
     /* =================================================
-       TODAY'S SUPPLIER CONTRIBUTIONS
+       GET COLLECTIONS FOR SELECTED DATE
     ================================================= */
 
-    const todayContributions =
-      await SupplierTeaCollection.find(
-        {
-          date: {
-            $gte: todayStart,
-            $lt: tomorrowStart,
-          },
-        }
-      ).lean();
-
-    const todaySupplierIds =
-      new Set(
-        todayContributions.map(
-          (item) =>
-            item.supplierId
-        )
-      );
-
-    const todaySuppliers =
-      todaySupplierIds.size;
-
-    /*
-     * Payments / rates are not part
-     * of the new collection flow yet.
-     */
-
-    const todayValue = 0;
-
-    /* =================================================
-       MONTHLY AREA COLLECTION
-    ================================================= */
-
-    const monthlyCollections =
-      await DailyAreaCollection.find(
-        {
-          date: {
-            $gte: monthStart,
-            $lt: nextMonthStart,
-          },
-        }
-      )
+    const collections =
+      await DailyAreaCollection.find({
+        date: {
+          $gte: start,
+          $lt: end,
+        },
+      })
         .sort({
-          date: -1,
+          areaName: 1,
         })
         .lean();
 
-    const monthlyKg =
-      monthlyCollections.reduce(
-        (sum, item) =>
-          sum +
-          Number(
-            item.totalKg || 0
-          ),
-        0
-      );
-
-    const monthlyAreaIds =
-      new Set(
-        monthlyCollections.map(
-          (item) =>
-            item.areaId
-        )
-      );
-
-    const monthlyAreas =
-      monthlyAreaIds.size;
+    console.log(
+      "DATE COLLECTIONS:",
+      collections.length
+    );
 
     /* =================================================
-       MONTHLY SUPPLIER CONTRIBUTIONS
+       CREATE AREA COLLECTION MAP
     ================================================= */
 
-    const monthlyContributions =
-      await SupplierTeaCollection.find(
-        {
-          date: {
-            $gte: monthStart,
-            $lt: nextMonthStart,
-          },
-        }
-      ).lean();
-
-    const monthlySupplierIds =
-      new Set(
-        monthlyContributions.map(
-          (item) =>
-            item.supplierId
-        )
-      );
-
-    const monthlySuppliers =
-      monthlySupplierIds.size;
-
-    const monthlyValue = 0;
-
-    /* =================================================
-       AREA / SUPPLIER COUNTS
-    ================================================= */
-
-    const [
-      totalAreas,
-      activeAreas,
-      totalSuppliers,
-      activeSuppliers,
-    ] =
-      await Promise.all([
-        Area.countDocuments(),
-
-        Area.countDocuments({
-          status: "Active",
-        }),
-
-        Supplier.countDocuments(),
-
-        Supplier.countDocuments({
-          status: "Active",
-        }),
-      ]);
-
-    /* =================================================
-       LAST 7 DAYS
-    ================================================= */
-
-    const sevenDayCollections =
-      await DailyAreaCollection.find(
-        {
-          date: {
-            $gte:
-              sevenDaysAgo,
-
-            $lt:
-              tomorrowStart,
-          },
-        }
-      )
-        .sort({
-          date: 1,
-        })
-        .lean();
-
-    const dailyMap =
+    const collectionMap =
       new Map<
         string,
-        number
+        (typeof collections)[number]
       >();
 
-    /*
-     * Create all 7 dates first.
-     */
-
     for (
-      let i = 0;
-      i < 7;
-      i++
+      const collection of collections
     ) {
-      const currentDate =
-        addDays(
-          sevenDaysAgo,
-          i
-        );
+      collectionMap.set(
+        collection.areaId,
+        collection
+      );
+    }
 
-      const dateKey =
-        getSriLankaDate(
-          currentDate
-        );
+    /* =================================================
+       BUILD AREA DATA
+    ================================================= */
 
-      dailyMap.set(
-        dateKey,
+    const areaResults =
+      areas.map((area) => {
+        const collection =
+          collectionMap.get(
+            area.areaId
+          );
+
+        const teaWeightKg =
+          collection
+            ? Number(
+                collection.totalKg || 0
+              )
+            : 0;
+
+        const factoryWeightKg =
+          collection
+            ? Number(
+                collection.factoryWeightKg ||
+                  0
+              )
+            : 0;
+
+        const differenceKg =
+          collection
+            ? Number(
+                collection.differenceKg ??
+                  teaWeightKg -
+                    factoryWeightKg
+              )
+            : 0;
+
+        return {
+          areaId:
+            area.areaId,
+
+          areaName:
+            area.name,
+
+          teaWeightKg,
+
+          factoryWeightKg,
+
+          differenceKg,
+
+          collectionId:
+            collection?.collectionId,
+        };
+      });
+
+    /* =================================================
+       CALCULATE TOTALS
+    ================================================= */
+
+    const totalTeaWeightKg =
+      areaResults.reduce(
+        (
+          total,
+          area
+        ) =>
+          total +
+          Number(
+            area.teaWeightKg || 0
+          ),
         0
       );
-    }
 
-    /*
-     * Add area totals.
-     */
-
-    for (
-      const collection of
-        sevenDayCollections
-    ) {
-      const dateKey =
-        getSriLankaDate(
-          new Date(
-            collection.date
-          )
-        );
-
-      const current =
-        dailyMap.get(
-          dateKey
-        ) || 0;
-
-      dailyMap.set(
-        dateKey,
-        current +
+    const totalFactoryWeightKg =
+      areaResults.reduce(
+        (
+          total,
+          area
+        ) =>
+          total +
           Number(
-            collection.totalKg ||
-              0
+            area.factoryWeightKg || 0
+          ),
+        0
+      );
+
+    const totalDifferenceKg =
+      areaResults.reduce(
+        (
+          total,
+          area
+        ) =>
+          total +
+          Number(
+            area.differenceKg || 0
+          ),
+        0
+      );
+
+    /* =================================================
+       COLLECTED AREAS
+    ================================================= */
+
+    const collectedAreas =
+      areaResults.filter(
+        (area) =>
+          Boolean(
+            area.collectionId
           )
-      );
-    }
-
-    const dailyData =
-      Array.from(
-        dailyMap.entries()
-      ).map(
-        ([date, kg]) => {
-          const dateObject =
-            new Date(
-              `${date}T00:00:00+05:30`
-            );
-
-          return {
-            date,
-
-            day: new Intl.DateTimeFormat(
-              "en-US",
-              {
-                timeZone:
-                  "Asia/Colombo",
-
-                day: "2-digit",
-              }
-            ).format(
-              dateObject
-            ),
-
-            kg,
-          };
-        }
-      );
+      ).length;
 
     /* =================================================
-       RECENT AREA COLLECTIONS
+       SUPPLIER COUNT
     ================================================= */
 
-    const recentCollections =
-      await DailyAreaCollection.find(
-        {}
-      )
-        .sort({
-          date: -1,
-          createdAt: -1,
-        })
-        .limit(8)
-        .lean();
-
-    const formattedRecent =
-      recentCollections.map(
-        (collection) => ({
-          id:
-            collection.collectionId,
-
-          /*
-           * New system is area-wise.
-           * Supplier is added later.
-           */
-          supplier:
-            "Area Collection",
-
-          supplierId:
-            "",
-
-          area:
-            collection.areaName,
-
-          areaId:
-            collection.areaId,
-
-          kg:
-            Number(
-              collection.totalKg ||
-                0
-            ),
-
-          /*
-           * Rate/payment
-           * will be added later.
-           */
-          rate: 0,
-
-          amount: 0,
-
-          date:
-            collection.date,
-        })
-      );
+    const totalSuppliers =
+      await Supplier.countDocuments({
+        status: "Active",
+      });
 
     /* =================================================
-       AVERAGE DAILY
+       FINAL RESPONSE
     ================================================= */
 
-    const daysPassed =
-      Math.max(
-        1,
-
-        Math.ceil(
-          (now.getTime() -
-            monthStart.getTime()) /
-            (1000 *
-              60 *
-              60 *
-              24)
-        )
-      );
-
-    const averageDaily =
-      monthlyKg /
-      daysPassed;
-
-    /* =================================================
-       RESPONSE
-    ================================================= */
-
-    return NextResponse.json({
+    const response = {
       success: true,
 
-      date: {
-        today:
-          getSriLankaDate(
-            now
-          ),
+      date: selectedDate,
 
-        year,
+      summary: {
+        totalAreas:
+          areas.length,
 
-        month,
+        collectedAreas,
 
-        day,
-      },
+        totalTeaWeightKg,
 
-      stats: {
-        todayKg,
+        totalFactoryWeightKg,
 
-        todayAreas,
-
-        todaySuppliers,
-
-        todayValue,
-
-        monthlyKg,
-
-        monthlyAreas,
-
-        totalAreas,
-
-        activeAreas,
+        totalDifferenceKg,
 
         totalSuppliers,
-
-        activeSuppliers,
-
-        monthlySuppliers,
-
-        monthlyValue,
-
-        averageDaily,
       },
 
-      dailyData,
+      areas:
+        areaResults,
+    };
 
-      recentCollections:
-        formattedRecent,
-    });
+    console.log(
+      "DASHBOARD RESPONSE:",
+      JSON.stringify(
+        response,
+        null,
+        2
+      )
+    );
+
+    return NextResponse.json(
+      response,
+      {
+        status: 200,
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (error) {
     console.error(
-      "DASHBOARD API ERROR:",
+      "================================="
+    );
+
+    console.error(
+      "DASHBOARD API ERROR"
+    );
+
+    console.error(
       error
+    );
+
+    console.error(
+      "================================="
     );
 
     return NextResponse.json(
@@ -592,6 +352,17 @@ export async function GET() {
           error instanceof Error
             ? error.message
             : "Failed to load dashboard data",
+
+        areas: [],
+
+        summary: {
+          totalAreas: 0,
+          collectedAreas: 0,
+          totalTeaWeightKg: 0,
+          totalFactoryWeightKg: 0,
+          totalDifferenceKg: 0,
+          totalSuppliers: 0,
+        },
       },
       {
         status: 500,
