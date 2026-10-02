@@ -1,192 +1,207 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  useEffect,
-  useState,
-} from "react";
-
-import { useRouter } from "next/navigation";
-
-import {
-  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Database,
+  Loader2,
+  Pencil,
   Plus,
   RefreshCw,
-  Pencil,
   Trash2,
-  Loader2,
 } from "lucide-react";
 
 import CollectionModal from "@/components/collections/CollectionModal";
-
 import EditCollectionModal from "@/components/collections/EditCollectionModal";
 
 interface Collection {
-  _id: string;
+  _id?: string;
   collectionId: string;
   date: string;
   areaId: string;
   areaName: string;
+
   totalKg: number;
   factoryWeightKg: number;
   differenceKg: number;
+
   notes?: string;
-}
-
-function formatDate(
-  date: string
-) {
-  return new Date(
-    date
-  ).toLocaleDateString(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  );
-}
-
-function formatKg(
-  value: number
-) {
-  return Number(
-    value || 0
-  ).toLocaleString(
-    "en-US",
-    {
-      maximumFractionDigits: 2,
-    }
-  );
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export default function CollectionsPage() {
-  const router = useRouter();
-
-  const [
-    collections,
-    setCollections,
-  ] = useState<
-    Collection[]
-  >([]);
+  const [collections, setCollections] =
+    useState<Collection[]>([]);
 
   const [loading, setLoading] =
     useState(true);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-  const [showModal, setShowModal] =
+  const [showAddModal, setShowAddModal] =
     useState(false);
 
   const [
     editingCollection,
     setEditingCollection,
-  ] = useState<
-    Collection | null
-  >(null);
+  ] = useState<Collection | null>(null);
 
-  const [
-    deletingCollection,
-    setDeletingCollection,
-  ] = useState<
-    string | null
-  >(null);
+  const [deletingId, setDeletingId] =
+    useState<string | null>(null);
 
-  const [error, setError] =
-    useState("");
-
-  /* =================================
+  /* =====================================================
      LOAD COLLECTIONS
-  ================================= */
+  ===================================================== */
 
-  async function fetchCollections() {
-    try {
-      setError("");
+  const loadCollections = useCallback(
+    async () => {
+      try {
+        setLoading(true);
 
-      const response =
-        await fetch(
+        const response = await fetch(
           "/api/collections",
           {
-            cache:
-              "no-store",
+            cache: "no-store",
           }
         );
 
-      const data =
-        await response.json();
+        const text =
+          await response.text();
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
-        throw new Error(
-          data.message ||
-            "Failed to load collections"
+        let data: {
+          success?: boolean;
+          message?: string;
+          collections?: Collection[];
+        } = {};
+
+        try {
+          data = text
+            ? JSON.parse(text)
+            : {};
+        } catch {
+          throw new Error(
+            "Invalid server response"
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              "Failed to load collections"
+          );
+        }
+
+        setCollections(
+          data.collections || []
         );
+      } catch (error) {
+        console.error(
+          "LOAD COLLECTIONS ERROR:",
+          error
+        );
+
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Failed to load collections"
+        );
+      } finally {
+        setLoading(false);
       }
+    },
+    []
+  );
 
-      setCollections(
-        data.collections || []
-      );
-    } catch (error) {
-      console.error(
-        "FETCH COLLECTIONS ERROR:",
-        error
-      );
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load collections"
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+  /* =====================================================
+     INITIAL LOAD
+  ===================================================== */
 
   useEffect(() => {
-    fetchCollections();
-  }, []);
+    loadCollections();
+  }, [loadCollections]);
 
-  /* =================================
-     REFRESH
-  ================================= */
+  /* =====================================================
+     FORMAT DATE
+  ===================================================== */
 
-  async function handleRefresh() {
-    setRefreshing(true);
-
-    await fetchCollections();
-  }
-
-  /* =================================
-     OPEN COLLECTION DETAILS
-  ================================= */
-
-  function handleOpenCollection(
-    collectionId: string
+  function formatDate(
+    value: string
   ) {
-    router.push(
-      `/collections/${encodeURIComponent(
-        collectionId
-      )}`
+    if (!value) {
+      return "-";
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "-";
+    }
+
+    return date.toLocaleDateString(
+      "en-GB",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }
     );
   }
 
-  /* =================================
-     DELETE COLLECTION
-  ================================= */
+  /* =====================================================
+     FORMAT NUMBER
+  ===================================================== */
 
-  async function handleDeleteCollection(
-    collectionId: string
+  function formatNumber(
+    value: number
+  ) {
+    return Number(
+      value || 0
+    ).toLocaleString(
+      "en-US",
+      {
+        maximumFractionDigits: 2,
+      }
+    );
+  }
+
+  /* =====================================================
+     ADD SUCCESS
+  ===================================================== */
+
+  async function handleCreated() {
+    setShowAddModal(false);
+
+    await loadCollections();
+  }
+
+  /* =====================================================
+     EDIT SUCCESS
+  ===================================================== */
+
+  async function handleEdited() {
+    setEditingCollection(null);
+
+    await loadCollections();
+  }
+
+  /* =====================================================
+     DELETE COLLECTION
+  ===================================================== */
+
+  async function handleDelete(
+    collection: Collection
   ) {
     const confirmed =
       window.confirm(
-        "Are you sure you want to delete this tea collection?\n\nThis action cannot be undone."
+        `Are you sure you want to delete the collection for ${collection.areaName} on ${formatDate(
+          collection.date
+        )}?`
       );
 
     if (!confirmed) {
@@ -194,40 +209,61 @@ export default function CollectionsPage() {
     }
 
     try {
-      setDeletingCollection(
-        collectionId
+      setDeletingId(
+        collection.collectionId
       );
 
       const response =
         await fetch(
           `/api/collections/${encodeURIComponent(
-            collectionId
+            collection.collectionId
           )}`,
           {
             method: "DELETE",
-            cache:
-              "no-store",
           }
         );
 
-      const data =
-        await response.json();
+      const text =
+        await response.text();
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      let data: {
+        success?: boolean;
+        message?: string;
+      } = {};
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : {};
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok) {
         throw new Error(
           data.message ||
             "Failed to delete collection"
         );
       }
 
-      alert(
-        "Collection deleted successfully!"
+      /* --------------------------------
+         Remove immediately from UI
+      -------------------------------- */
+
+      setCollections(
+        (current) =>
+          current.filter(
+            (item) =>
+              item.collectionId !==
+              collection.collectionId
+          )
       );
 
-      await fetchCollections();
+      /* --------------------------------
+         Sync with database
+      -------------------------------- */
+
+      await loadCollections();
     } catch (error) {
       console.error(
         "DELETE COLLECTION ERROR:",
@@ -240,457 +276,499 @@ export default function CollectionsPage() {
           : "Failed to delete collection"
       );
     } finally {
-      setDeletingCollection(
-        null
-      );
+      setDeletingId(null);
     }
   }
 
-  /* =================================
-     TOTAL
-  ================================= */
+  /* =====================================================
+     EDIT COLLECTION
+  ===================================================== */
 
-  const totalKg =
-    collections.reduce(
-      (sum, item) =>
-        sum +
-        Number(
-          item.totalKg || 0
-        ),
-      0
+  function handleEdit(
+    collection: Collection
+  ) {
+    setEditingCollection(
+      collection
     );
+  }
+
+  /* =====================================================
+     CLOSE EDIT
+  ===================================================== */
+
+  function handleCloseEdit() {
+    setEditingCollection(null);
+  }
+
+  /* =====================================================
+     RENDER
+  ===================================================== */
 
   return (
-    <div className="min-h-screen bg-[#07100b] text-white">
+    <main className="min-h-screen bg-[#020a06] p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl">
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-
-        {/* =================================
-            BACK BUTTON
-        ================================= */}
-
-        <button
-          type="button"
-          onClick={() =>
-            router.back()
-          }
-          className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:text-white"
-        >
-          <ArrowLeft size={17} />
-
-          Back
-        </button>
-
-        {/* =================================
+        {/* =================================================
             HEADER
-        ================================= */}
+        ================================================= */}
 
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
-
-            <div className="mb-2 flex items-center gap-2 text-sm text-emerald-400">
-              <Database size={16} />
-
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-400">
               Cooroonduwatte Tea
-            </div>
+            </p>
 
-            <h1 className="text-2xl font-bold sm:text-3xl">
+            <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
               Tea Collections
             </h1>
 
-            <p className="mt-1 text-sm text-gray-400">
-              Daily tea collection by area
+            <p className="mt-1 text-sm text-slate-500">
+              Manage daily area tea collections
             </p>
-
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
 
             {/* Refresh */}
 
             <button
               type="button"
-              onClick={
-                handleRefresh
-              }
-              disabled={
-                refreshing
-              }
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300 transition hover:bg-white/10 disabled:opacity-50"
+              onClick={loadCollections}
+              disabled={loading}
+              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-800 bg-[#07140d] px-4 text-sm font-medium text-slate-300 transition hover:border-emerald-500/30 hover:text-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw
-                size={17}
+                size={16}
                 className={
-                  refreshing
+                  loading
                     ? "animate-spin"
                     : ""
                 }
               />
 
-              Refresh
+              <span className="hidden sm:inline">
+                Refresh
+              </span>
             </button>
 
-            {/* Add */}
+            {/* Add Collection */}
 
             <button
               type="button"
               onClick={() =>
-                setShowModal(true)
+                setShowAddModal(true)
               }
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold transition hover:bg-emerald-500"
+              className="flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-black transition hover:bg-emerald-400"
             >
-              <Plus size={18} />
+              <Plus size={17} />
 
               Add Collection
             </button>
-
           </div>
-
         </div>
 
-        {/* =================================
+        {/* =================================================
             SUMMARY
-        ================================= */}
+        ================================================= */}
 
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {!loading &&
+          collections.length > 0 && (
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
 
-          <div className="rounded-xl border border-white/10 bg-[#0d1811] px-5 py-4">
+              {/* Collection Count */}
 
-            <p className="text-sm text-gray-400">
-              Collection Records
-            </p>
-
-            <p className="mt-2 text-2xl font-bold">
-              {collections.length}
-            </p>
-
-          </div>
-
-          <div className="rounded-xl border border-white/10 bg-[#0d1811] px-5 py-4">
-
-            <p className="text-sm text-gray-400">
-              Total Tea KG
-            </p>
-
-            <p className="mt-2 text-2xl font-bold text-emerald-400">
-              {formatKg(
-                totalKg
-              )}{" "}
-              KG
-            </p>
-
-          </div>
-
-        </div>
-
-        {/* =================================
-            ERROR
-        ================================= */}
-
-        {error && (
-          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {error}
-          </div>
-        )}
-
-        {/* =================================
-            LOADING
-        ================================= */}
-
-        {loading ? (
-          <div className="rounded-xl border border-white/10 bg-[#0d1811] p-10 text-center text-gray-400">
-            Loading collections...
-          </div>
-        ) : collections.length === 0 ? (
-
-          /* =================================
-             EMPTY
-          ================================= */
-
-          <div className="rounded-xl border border-dashed border-white/10 bg-[#0d1811] p-14 text-center">
-
-            <Database
-              size={38}
-              className="mx-auto mb-4 text-gray-600"
-            />
-
-            <h2 className="font-semibold">
-              No tea collections yet
-            </h2>
-
-            <p className="mt-2 text-sm text-gray-500">
-              Add the daily total tea collection for an area.
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                setShowModal(true)
-              }
-              className="mx-auto mt-5 flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold transition hover:bg-emerald-500"
-            >
-              <Plus size={18} />
-
-              Add Collection
-            </button>
-
-          </div>
-
-        ) : (
-
-          /* =================================
-             COLLECTION LIST
-          ================================= */
-
-          <div className="space-y-3">
-
-            {collections.map(
-              (
-                collection
-              ) => (
-
-                <div
-                  key={
-                    collection.collectionId
-                  }
-
-                  onClick={() =>
-                    handleOpenCollection(
-                      collection.collectionId
-                    )
-                  }
-
-                  className="cursor-pointer rounded-xl border border-white/10 bg-[#0d1811] px-4 py-4 transition hover:border-emerald-500/30 hover:bg-[#101c14]"
-                >
-
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
-                    {/* =================================
-                        LEFT
-                    ================================= */}
-
-                    <div className="flex min-w-0 items-center gap-4">
-
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-
-                        <Database
-                          size={20}
-                        />
-
-                      </div>
-
-                      <div className="min-w-0">
-
-                        <div className="flex flex-wrap items-center gap-2">
-
-                          <h2 className="font-semibold text-white">
-                            {
-                              collection.areaName
-                            }
-                          </h2>
-
-                          <span className="rounded-md bg-white/5 px-2 py-1 text-xs text-gray-500">
-                            {
-                              collection.areaId
-                            }
-                          </span>
-
-                        </div>
-
-                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-
-                          <CalendarDays
-                            size={14}
-                          />
-
-                          {formatDate(
-                            collection.date
-                          )}
-
-                          <span>
-                            •
-                          </span>
-
-                          {
-                            collection.collectionId
-                          }
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                    {/* =================================
-                        RIGHT
-                    ================================= */}
-
-                    <div className="flex flex-wrap items-center gap-5 lg:justify-end">
-
-                      {/* Area Total */}
-
-                      <div>
-
-                        <p className="text-xs text-gray-500">
-                          Area Total
-                        </p>
-
-                        <p className="mt-1 text-lg font-bold text-emerald-400">
-                          {formatKg(
-                            collection.totalKg
-                          )}{" "}
-                          KG
-                        </p>
-
-                      </div>
-
-                      {/* Factory Weight */}
-
-                      <div className="hidden sm:block">
-
-                        <p className="text-xs text-gray-500">
-                          Factory Weight
-                        </p>
-
-                        <p className="mt-1 text-sm font-medium text-gray-300">
-                          {formatKg(
-                            collection.factoryWeightKg
-                          )}{" "}
-                          KG
-                        </p>
-
-                      </div>
-
-                      {/* =================================
-                          EDIT
-                      ================================= */}
-
-                      <button
-                        type="button"
-
-                        onClick={(
-                          event
-                        ) => {
-                          event.stopPropagation();
-
-                          setEditingCollection(
-                            collection
-                          );
-                        }}
-
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition hover:border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-400"
-                        title="Edit collection"
-                      >
-                        <Pencil
-                          size={16}
-                        />
-                      </button>
-
-                      {/* =================================
-                          DELETE
-                      ================================= */}
-
-                      <button
-                        type="button"
-
-                        onClick={(
-                          event
-                        ) => {
-                          event.stopPropagation();
-
-                          handleDeleteCollection(
-                            collection.collectionId
-                          );
-                        }}
-
-                        disabled={
-                          deletingCollection ===
-                          collection.collectionId
-                        }
-
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-
-                        title="Delete collection"
-                      >
-
-                        {deletingCollection ===
-                        collection.collectionId ? (
-                          <Loader2
-                            size={16}
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <Trash2
-                            size={16}
-                          />
-                        )}
-
-                      </button>
-
-                      {/* Arrow */}
-
-                      <ArrowRight
-                        size={18}
-                        className="text-gray-600 transition group-hover:text-emerald-400"
-                      />
-
-                    </div>
-
+              <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                    <Database size={19} />
                   </div>
 
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Collections
+                    </p>
+
+                    <p className="mt-1 text-xl font-bold text-white">
+                      {collections.length}
+                    </p>
+                  </div>
                 </div>
+              </div>
 
-              )
-            )}
+              {/* Tea Weight */}
 
+              <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
+                <p className="text-xs text-slate-500">
+                  Total Field Weight
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-white">
+                  {formatNumber(
+                    collections.reduce(
+                      (
+                        total,
+                        item
+                      ) =>
+                        total +
+                        Number(
+                          item.totalKg ||
+                            0
+                        ),
+                      0
+                    )
+                  )}{" "}
+                  KG
+                </p>
+              </div>
+
+              {/* Factory Weight */}
+
+              <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
+                <p className="text-xs text-slate-500">
+                  Total Factory Weight
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-emerald-400">
+                  {formatNumber(
+                    collections.reduce(
+                      (
+                        total,
+                        item
+                      ) =>
+                        total +
+                        Number(
+                          item.factoryWeightKg ||
+                            0
+                        ),
+                      0
+                    )
+                  )}{" "}
+                  KG
+                </p>
+              </div>
+            </div>
+          )}
+
+        {/* =================================================
+            LOADING
+        ================================================= */}
+
+        {loading && (
+          <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-12 text-center">
+            <Loader2
+              size={30}
+              className="mx-auto animate-spin text-emerald-400"
+            />
+
+            <p className="mt-4 text-sm text-slate-500">
+              Loading collections...
+            </p>
           </div>
-
         )}
 
+        {/* =================================================
+            EMPTY
+        ================================================= */}
+
+        {!loading &&
+          collections.length === 0 && (
+            <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-12 text-center">
+
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
+                <Database size={26} />
+              </div>
+
+              <h3 className="mt-4 font-semibold text-white">
+                No collections found
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Add your first tea collection.
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowAddModal(true)
+                }
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-emerald-400"
+              >
+                <Plus size={17} />
+
+                Add Collection
+              </button>
+            </div>
+          )}
+
+        {/* =================================================
+            COLLECTION CARDS
+        ================================================= */}
+
+        {!loading &&
+          collections.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+
+              {collections.map(
+                (collection) => {
+                  const difference =
+                    Number(
+                      collection.differenceKg ||
+                        0
+                    );
+
+                  return (
+                    <div
+                      key={
+                        collection.collectionId
+                      }
+                      className="group overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] transition duration-200 hover:-translate-y-1 hover:border-emerald-500/30"
+                    >
+
+                      {/* =================================================
+                          CARD HEADER
+                      ================================================= */}
+
+                      <div className="p-5">
+
+                        <div className="flex items-start justify-between gap-3">
+
+                          <div className="min-w-0">
+
+                            <p className="text-xs font-medium text-emerald-400">
+                              {
+                                collection.collectionId
+                              }
+                            </p>
+
+                            <h3 className="mt-1 truncate font-semibold text-white">
+                              {
+                                collection.areaName
+                              }
+                            </h3>
+
+                            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                              <CalendarDays
+                                size={14}
+                              />
+
+                              <span>
+                                {formatDate(
+                                  collection.date
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+
+                          <div className="flex items-center gap-1">
+
+                            {/* Edit */}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleEdit(
+                                  collection
+                                )
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-emerald-500/10 hover:text-emerald-400"
+                              title="Edit collection"
+                            >
+                              <Pencil
+                                size={16}
+                              />
+                            </button>
+
+                            {/* Delete */}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDelete(
+                                  collection
+                                )
+                              }
+                              disabled={
+                                deletingId ===
+                                collection.collectionId
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                              title="Delete collection"
+                            >
+                              {deletingId ===
+                              collection.collectionId ? (
+                                <Loader2
+                                  size={16}
+                                  className="animate-spin"
+                                />
+                              ) : (
+                                <Trash2
+                                  size={16}
+                                />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* =================================================
+                            WEIGHTS
+                        ================================================= */}
+
+                        <div className="mt-5 grid grid-cols-2 gap-3">
+
+                          {/* Tea Weight */}
+
+                          <div className="rounded-xl bg-slate-900/50 p-3">
+                            <p className="text-xs text-slate-500">
+                              Field Weight
+                            </p>
+
+                            <p className="mt-1 text-lg font-bold text-white">
+                              {formatNumber(
+                                collection.totalKg
+                              )}{" "}
+                              <span className="text-xs font-medium text-slate-500">
+                                KG
+                              </span>
+                            </p>
+                          </div>
+
+                          {/* Factory Weight */}
+
+                          <div className="rounded-xl bg-slate-900/50 p-3">
+                            <p className="text-xs text-slate-500">
+                              Factory Weight
+                            </p>
+
+                            <p className="mt-1 text-lg font-bold text-emerald-400">
+                              {formatNumber(
+                                collection.factoryWeightKg
+                              )}{" "}
+                              <span className="text-xs font-medium text-slate-500">
+                                KG
+                              </span>
+                            </p>
+                          </div>
+
+                        </div>
+
+                        {/* =================================================
+                            DIFFERENCE
+                        ================================================= */}
+
+                        <div className="mt-3 rounded-xl bg-slate-900/50 p-3">
+
+                          <div className="flex items-center justify-between gap-3">
+
+                            <div>
+                              <p className="text-xs text-slate-500">
+                                Difference
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-600">
+                                Field Weight − Factory Weight
+                              </p>
+                            </div>
+
+                            <p
+                              className={`text-lg font-bold ${
+                                difference > 0
+                                  ? "text-amber-400"
+                                  : difference < 0
+                                    ? "text-red-400"
+                                    : "text-emerald-400"
+                              }`}
+                            >
+                              {difference > 0
+                                ? "+"
+                                : ""}
+                              {formatNumber(
+                                difference
+                              )}{" "}
+                              KG
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Notes */}
+
+                        {collection.notes && (
+                          <div className="mt-3 rounded-xl bg-slate-900/30 p-3">
+                            <p className="text-xs text-slate-500">
+                              Notes
+                            </p>
+
+                            <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+                              {
+                                collection.notes
+                              }
+                            </p>
+                          </div>
+                        )}
+
+                      </div>
+
+                      {/* =================================================
+                          VIEW COLLECTION
+                      ================================================= */}
+
+                      <Link
+                        href={`/collections/${encodeURIComponent(
+                          collection.collectionId
+                        )}`}
+                        className="flex w-full items-center justify-between border-t border-slate-800 bg-slate-900/20 px-5 py-3.5 text-sm font-medium text-slate-400 transition hover:bg-emerald-500/5 hover:text-emerald-400"
+                      >
+                        <span>
+                          View Collection
+                        </span>
+
+                        <ArrowRight
+                          size={16}
+                          className="transition-transform group-hover:translate-x-1"
+                        />
+                      </Link>
+                    </div>
+                  );
+                }
+              )}
+            </div>
+          )}
       </div>
 
-      {/* =================================
+      {/* ===================================================
           ADD COLLECTION MODAL
-      ================================= */}
+      =================================================== */}
 
       <CollectionModal
-        isOpen={
-          showModal
-        }
+        isOpen={showAddModal}
         onClose={() =>
-          setShowModal(false)
+          setShowAddModal(false)
         }
-        onAdded={
-          fetchCollections
+        onCreated={
+          handleCreated
         }
       />
 
-      {/* =================================
+      {/* ===================================================
           EDIT COLLECTION MODAL
-      ================================= */}
+      =================================================== */}
 
-      <EditCollectionModal
-        isOpen={
-          !!editingCollection
-        }
-        collection={
-          editingCollection
-        }
-        onClose={() =>
-          setEditingCollection(
-            null
-          )
-        }
-        onUpdated={async () => {
-          setEditingCollection(
-            null
-          );
-
-          await fetchCollections();
-        }}
-      />
-
-    </div>
+      {editingCollection && (
+        <EditCollectionModal
+          isOpen={true}
+          collection={
+            editingCollection
+          }
+          onClose={
+            handleCloseEdit
+          }
+          onUpdated={
+            handleEdited
+          }
+        />
+      )}
+    </main>
   );
 }

@@ -4,15 +4,24 @@ import mongoose, {
   Model,
 } from "mongoose";
 
-export interface IDailyAreaCollection extends Document {
+export interface IDailyAreaCollection
+  extends Document {
   collectionId: string;
   date: Date;
   areaId: string;
   areaName: string;
+
+  // Total tea collected from the area
   totalKg: number;
+
+  // Weight measured at factory
   factoryWeightKg: number;
+
+  // Area weight - factory weight
   differenceKg: number;
+
   notes: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +55,7 @@ const DailyAreaCollectionSchema =
         trim: true,
       },
 
+      // Tea weight collected from the area
       totalKg: {
         type: Number,
         required: true,
@@ -53,6 +63,7 @@ const DailyAreaCollectionSchema =
         default: 0,
       },
 
+      // Factory measured weight
       factoryWeightKg: {
         type: Number,
         required: true,
@@ -60,6 +71,7 @@ const DailyAreaCollectionSchema =
         default: 0,
       },
 
+      // Difference between area weight and factory weight
       differenceKg: {
         type: Number,
         required: true,
@@ -74,8 +86,6 @@ const DailyAreaCollectionSchema =
     },
     {
       timestamps: true,
-
-      // Use one fixed MongoDB collection
       collection: "dailyareacollections",
     }
   );

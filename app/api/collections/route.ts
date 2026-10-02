@@ -1,84 +1,57 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+
 import { connectDB } from "@/lib/mongodb";
 import Area from "@/models/Area";
 
-function getSriLankaDayRange(dateString: string) {
+function getSriLankaDateRange(
+  dateString: string
+) {
   const start = new Date(
     `${dateString}T00:00:00+05:30`
   );
 
   const end = new Date(
-    start.getTime() + 24 * 60 * 60 * 1000
+    `${dateString}T23:59:59.999+05:30`
   );
 
-  return { start, end };
+  return {
+    start,
+    end,
+  };
 }
 
-async function getMongoCollection() {
-  await connectDB();
-
-  const db = mongoose.connection.db;
-
-  if (!db) {
-    throw new Error("MongoDB database connection not available");
-  }
-
-  return db.collection("dailyareacollections");
-}
-
-async function generateCollectionId(
-  collection: ReturnType<
-    NonNullable<typeof mongoose.connection.db>["collection"]
-  >
-) {
-  const last = await collection
-    .find({})
-    .sort({ createdAt: -1 })
-    .limit(1)
-    .next();
-
-  let nextNumber = 1;
-
-  if (
-    last &&
-    typeof last.collectionId === "string"
-  ) {
-    const match =
-      last.collectionId.match(
-        /AREA-COL-(\d+)/
-      );
-
-    if (match) {
-      nextNumber =
-        Number(match[1]) + 1;
-    }
-  }
-
-  return `AREA-COL-${String(
-    nextNumber
-  ).padStart(3, "0")}`;
-}
-
-/* =====================================
-   GET
-===================================== */
+/* =====================================================
+   GET COLLECTIONS
+===================================================== */
 
 export async function GET(
   request: Request
 ) {
   try {
+    await connectDB();
+
+    const db = mongoose.connection.db;
+
+    if (!db) {
+      throw new Error(
+        "MongoDB database connection not available"
+      );
+    }
+
     const collection =
-      await getMongoCollection();
+      db.collection(
+        "dailyareacollections"
+      );
 
     const { searchParams } =
       new URL(request.url);
 
-    const date =
-      searchParams.get("date");
-
     const areaId =
       searchParams.get("areaId");
+
+    const date =
+      searchParams.get("date");
 
     const filter: Record<
       string,
@@ -89,13 +62,19 @@ export async function GET(
       filter.areaId = areaId;
     }
 
+    /* --------------------------------
+       Date filter
+    -------------------------------- */
+
     if (date) {
-      const { start, end } =
-        getSriLankaDayRange(date);
+      const {
+        start,
+        end,
+      } = getSriLankaDateRange(date);
 
       filter.date = {
         $gte: start,
-        $lt: end,
+        $lte: end,
       };
     }
 
@@ -109,48 +88,52 @@ export async function GET(
         .toArray();
 
     const collections =
-      documents.map((item) => ({
-        _id: String(item._id),
-
-        collectionId:
-          item.collectionId || "",
-
-        date:
-          item.date,
-
-        areaId:
-          item.areaId || "",
-
-        areaName:
-          item.areaName || "",
-
-        totalKg:
-          Number(item.totalKg ?? 0),
-
-        factoryWeightKg:
-          Number(
-            item.factoryWeightKg ?? 0
+      documents.map(
+        (document) => ({
+          _id: String(
+            document._id
           ),
 
-        differenceKg:
-          Number(
-            item.differenceKg ?? 0
+          collectionId:
+            document.collectionId,
+
+          date: document.date,
+
+          areaId:
+            document.areaId,
+
+          areaName:
+            document.areaName,
+
+          // Area / Tea weight
+          totalKg: Number(
+            document.totalKg ?? 0
           ),
 
-        notes:
-          item.notes || "",
+          // Factory weight
+          factoryWeightKg:
+            Number(
+              document.factoryWeightKg ??
+                0
+            ),
 
-        createdAt:
-          item.createdAt,
+          // Difference
+          differenceKg:
+            Number(
+              document.differenceKg ??
+                0
+            ),
 
-        updatedAt:
-          item.updatedAt,
-      }));
+          notes:
+            document.notes || "",
 
-    console.log(
-      "GET FROM MONGODB:",
-      collections
-    );
+          createdAt:
+            document.createdAt,
+
+          updatedAt:
+            document.updatedAt,
+        })
+      );
 
     return NextResponse.json({
       success: true,
@@ -175,65 +158,51 @@ export async function GET(
   }
 }
 
-/* =====================================
-   POST
-===================================== */
+/* =====================================================
+   POST COLLECTION
+===================================================== */
 
 export async function POST(
   request: Request
 ) {
   try {
-    const collection =
-      await getMongoCollection();
+    await connectDB();
+
+    const db = mongoose.connection.db;
+
+    if (!db) {
+      throw new Error(
+        "MongoDB database connection not available"
+      );
+    }
 
     const body =
       await request.json();
 
-    console.log(
-      "================================"
+    const date = String(
+      body.date || ""
+    ).trim();
+
+    const areaId = String(
+      body.areaId || ""
+    ).trim();
+
+    const totalKg = Number(
+      body.totalKg
     );
 
-    console.log(
-      "RAW BODY:",
-      body
-    );
+    const factoryWeightKg =
+      Number(
+        body.factoryWeightKg
+      );
 
-    const date =
-      String(
-        body.date || ""
-      ).trim();
+    const notes = String(
+      body.notes || ""
+    ).trim();
 
-    const areaId =
-      String(
-        body.areaId || ""
-      ).trim();
-
-    const totalKg =
-      Number(body.totalKg);
-
-    console.log(
-      "DATE:",
-      date
-    );
-
-    console.log(
-      "AREA:",
-      areaId
-    );
-
-    console.log(
-      "TOTAL KG:",
-      totalKg
-    );
-
-    console.log(
-      "TOTAL KG TYPE:",
-      typeof totalKg
-    );
-
-    /* =================================
-       VALIDATION
-    ================================= */
+    /* --------------------------------
+       Validation
+    -------------------------------- */
 
     if (!date) {
       return NextResponse.json(
@@ -251,29 +220,71 @@ export async function POST(
         {
           success: false,
           message:
-            "Please select an area",
+            "Area is required",
         },
         { status: 400 }
       );
     }
 
     if (
-      !Number.isFinite(totalKg) ||
+      !Number.isFinite(
+        totalKg
+      ) ||
       totalKg <= 0
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Total tea KG must be greater than 0",
+            "Valid tea weight is required",
         },
         { status: 400 }
       );
     }
 
-    /* =================================
-       FIND AREA
-    ================================= */
+    if (
+      !Number.isFinite(
+        factoryWeightKg
+      ) ||
+      factoryWeightKg < 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Valid factory weight is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* --------------------------------
+       Validate date
+    -------------------------------- */
+
+    const selectedDate =
+      new Date(
+        `${date}T00:00:00+05:30`
+      );
+
+    if (
+      Number.isNaN(
+        selectedDate.getTime()
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid collection date",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* --------------------------------
+       Find area
+    -------------------------------- */
 
     const area =
       await Area.findOne({
@@ -286,62 +297,79 @@ export async function POST(
         {
           success: false,
           message:
-            "Active area not found",
+            "Selected area was not found or is inactive",
         },
         { status: 404 }
       );
     }
 
-    /* =================================
-       DATE
-    ================================= */
+    /* --------------------------------
+       Difference
+       
+       Tea Weight - Factory Weight
+    -------------------------------- */
 
-    const {
-      start,
-      end,
-    } =
-      getSriLankaDayRange(date);
+    const differenceKg =
+      Number(
+        (
+          totalKg -
+          factoryWeightKg
+        ).toFixed(2)
+      );
 
-    /* =================================
-       CHECK EXISTING
-    ================================= */
+    const collection =
+      db.collection(
+        "dailyareacollections"
+      );
+
+    /* --------------------------------
+       Check same area + same date
+    -------------------------------- */
+
+    const start =
+      new Date(
+        `${date}T00:00:00+05:30`
+      );
+
+    const end =
+      new Date(
+        `${date}T23:59:59.999+05:30`
+      );
 
     const existing =
       await collection.findOne({
         areaId,
         date: {
           $gte: start,
-          $lt: end,
+          $lte: end,
         },
       });
 
-    /* =================================
-       UPDATE EXISTING
-    ================================= */
+    /* --------------------------------
+       If already exists
+       
+       Update it instead of creating
+       duplicate collection
+    -------------------------------- */
 
     if (existing) {
-      console.log(
-        "EXISTING RECORD FOUND:",
-        existing
-      );
-
       await collection.updateOne(
         {
           _id: existing._id,
         },
         {
           $set: {
-            totalKg: totalKg,
+            date: selectedDate,
+            areaId: area.areaId,
+            areaName: area.name,
 
-            areaName:
-              area.name,
+            totalKg,
 
-            differenceKg:
-              totalKg -
-              Number(
-                existing.factoryWeightKg ??
-                  0
-              ),
+            factoryWeightKg,
+
+            differenceKg,
+
+            notes,
 
             updatedAt:
               new Date(),
@@ -354,14 +382,8 @@ export async function POST(
           _id: existing._id,
         });
 
-      console.log(
-        "UPDATED DIRECTLY IN MONGODB:",
-        updated
-      );
-
       return NextResponse.json({
         success: true,
-
         message:
           "Collection updated successfully",
 
@@ -382,10 +404,9 @@ export async function POST(
           areaName:
             updated?.areaName,
 
-          totalKg:
-            Number(
-              updated?.totalKg ?? 0
-            ),
+          totalKg: Number(
+            updated?.totalKg ?? 0
+          ),
 
           factoryWeightKg:
             Number(
@@ -405,36 +426,69 @@ export async function POST(
       });
     }
 
-    /* =================================
-       CREATE NEW
-    ================================= */
+    /* --------------------------------
+       Generate collection ID
+    -------------------------------- */
+
+    const lastCollection =
+      await collection
+        .find({})
+        .sort({
+          collectionId: -1,
+        })
+        .limit(1)
+        .toArray();
+
+    let nextNumber = 1;
+
+    if (
+      lastCollection.length > 0
+    ) {
+      const lastId =
+        String(
+          lastCollection[0]
+            .collectionId || ""
+        );
+
+      const match =
+        lastId.match(
+          /(\d+)$/
+        );
+
+      if (match) {
+        nextNumber =
+          Number(match[1]) + 1;
+      }
+    }
 
     const collectionId =
-      await generateCollectionId(
-        collection
-      );
+      `AREA-COL-${String(
+        nextNumber
+      ).padStart(3, "0")}`;
 
-    const newDocument = {
+    /* --------------------------------
+       Create collection
+    -------------------------------- */
+
+    const newCollection = {
       collectionId,
 
-      date: start,
+      date: selectedDate,
 
-      areaId:
-        area.areaId,
+      areaId: area.areaId,
 
-      areaName:
-        area.name,
+      areaName: area.name,
 
-      totalKg:
-        totalKg,
+      // Tea weight
+      totalKg,
 
-      factoryWeightKg:
-        0,
+      // Factory weight
+      factoryWeightKg,
 
-      differenceKg:
-        totalKg,
+      // Difference
+      differenceKg,
 
-      notes: "",
+      notes,
 
       createdAt:
         new Date(),
@@ -443,44 +497,10 @@ export async function POST(
         new Date(),
     };
 
-    console.log(
-      "DOCUMENT BEFORE MONGODB INSERT:",
-      newDocument
-    );
-
-    const insertResult =
+    const result =
       await collection.insertOne(
-        newDocument
+        newCollection
       );
-
-    console.log(
-      "MONGODB INSERT RESULT:",
-      insertResult
-    );
-
-    /* =================================
-       READ BACK FROM MONGODB
-    ================================= */
-
-    const saved =
-      await collection.findOne({
-        _id:
-          insertResult.insertedId,
-      });
-
-    console.log(
-      "ACTUAL SAVED MONGODB DOCUMENT:",
-      saved
-    );
-
-    console.log(
-      "ACTUAL SAVED TOTAL KG:",
-      saved?.totalKg
-    );
-
-    /* =================================
-       RESPONSE
-    ================================= */
 
     return NextResponse.json(
       {
@@ -491,40 +511,26 @@ export async function POST(
 
         collection: {
           _id: String(
-            saved?._id
+            result.insertedId
           ),
 
-          collectionId:
-            saved?.collectionId,
+          collectionId,
 
-          date:
-            saved?.date,
+          date: selectedDate,
 
           areaId:
-            saved?.areaId,
+            area.areaId,
 
           areaName:
-            saved?.areaName,
+            area.name,
 
-          totalKg:
-            Number(
-              saved?.totalKg ?? 0
-            ),
+          totalKg,
 
-          factoryWeightKg:
-            Number(
-              saved?.factoryWeightKg ??
-                0
-            ),
+          factoryWeightKg,
 
-          differenceKg:
-            Number(
-              saved?.differenceKg ??
-                0
-            ),
+          differenceKg,
 
-          notes:
-            saved?.notes || "",
+          notes,
         },
       },
       { status: 201 }
@@ -538,7 +544,6 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-
         message:
           error instanceof Error
             ? error.message
