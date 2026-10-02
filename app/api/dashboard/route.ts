@@ -1,35 +1,63 @@
 import { NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
+
 import Area from "@/models/Area";
 import Supplier from "@/models/Supplier";
-import TeaCollection from "@/models/TeaCollection";
+import DailyAreaCollection from "@/models/DailyAreaCollection";
+import SupplierTeaCollection from "@/models/SupplierTeaCollection";
 
-function getSriLankaDate(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Colombo",
-  }).format(date);
+/* =====================================================
+   SRI LANKA DATE HELPERS
+===================================================== */
+
+function getSriLankaDate(
+  date = new Date()
+) {
+  return new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Asia/Colombo",
+    }
+  ).format(date);
 }
 
-function getSriLankaDateParts(date = new Date()) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Colombo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+function getSriLankaDateParts(
+  date = new Date()
+) {
+  const formatter =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone: "Asia/Colombo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    );
 
-  const parts = formatter.formatToParts(date);
+  const parts =
+    formatter.formatToParts(date);
 
   const year = Number(
-    parts.find((part) => part.type === "year")?.value
+    parts.find(
+      (part) =>
+        part.type === "year"
+    )?.value
   );
 
   const month = Number(
-    parts.find((part) => part.type === "month")?.value
+    parts.find(
+      (part) =>
+        part.type === "month"
+    )?.value
   );
 
   const day = Number(
-    parts.find((part) => part.type === "day")?.value
+    parts.find(
+      (part) =>
+        part.type === "day"
+    )?.value
   );
 
   return {
@@ -45,8 +73,18 @@ function sriLankaDateToUTC(
   day: number
 ) {
   return new Date(
-    Date.UTC(year, month - 1, day, 0, 0, 0) -
-      5.5 * 60 * 60 * 1000
+    Date.UTC(
+      year,
+      month - 1,
+      day,
+      0,
+      0,
+      0
+    ) -
+      5.5 *
+        60 *
+        60 *
+        1000
   );
 }
 
@@ -54,41 +92,59 @@ function addDays(
   date: Date,
   days: number
 ) {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
+  const result =
+    new Date(date);
+
+  result.setUTCDate(
+    result.getUTCDate() + days
+  );
+
   return result;
 }
+
+/* =====================================================
+   DASHBOARD GET
+===================================================== */
 
 export async function GET() {
   try {
     await connectDB();
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const {
       year,
       month,
       day,
-    } = getSriLankaDateParts(now);
+    } =
+      getSriLankaDateParts(
+        now
+      );
 
-    // Sri Lanka today
-    const todayStart = sriLankaDateToUTC(
-      year,
-      month,
-      day
-    );
+    /* =================================================
+       DATE RANGES
+    ================================================= */
 
-    const tomorrowStart = addDays(
-      todayStart,
-      1
-    );
+    const todayStart =
+      sriLankaDateToUTC(
+        year,
+        month,
+        day
+      );
 
-    // Current month
-    const monthStart = sriLankaDateToUTC(
-      year,
-      month,
-      1
-    );
+    const tomorrowStart =
+      addDays(
+        todayStart,
+        1
+      );
+
+    const monthStart =
+      sriLankaDateToUTC(
+        year,
+        month,
+        1
+      );
 
     const nextMonthStart =
       month === 12
@@ -103,46 +159,78 @@ export async function GET() {
             1
           );
 
-    // Last 7 days
-    const sevenDaysAgo = addDays(
-      todayStart,
-      -6
-    );
+    const sevenDaysAgo =
+      addDays(
+        todayStart,
+        -6
+      );
 
-    /*
-     * ----------------------------------------
-     * TODAY'S COLLECTION
-     * ----------------------------------------
-     */
+    /* =================================================
+       TODAY'S AREA COLLECTION
+    ================================================= */
 
     const todayCollections =
-      await TeaCollection.find({
-        date: {
-          $gte: todayStart,
-          $lt: tomorrowStart,
-        },
-      })
-        .sort({ date: -1 })
+      await DailyAreaCollection.find(
+        {
+          date: {
+            $gte: todayStart,
+            $lt: tomorrowStart,
+          },
+        }
+      )
+        .sort({
+          date: -1,
+        })
         .lean();
+
+    /*
+     * Main collection is area-wise.
+     *
+     * Example:
+     * Area 1 = 5,000 KG
+     * Area 2 = 20,000 KG
+     */
 
     const todayKg =
       todayCollections.reduce(
         (sum, item) =>
-          sum + Number(item.weightKg || 0),
+          sum +
+          Number(
+            item.totalKg || 0
+          ),
         0
       );
 
-    const todayValue =
-      todayCollections.reduce(
-        (sum, item) =>
-          sum + Number(item.totalAmount || 0),
-        0
+    const todayAreaIds =
+      new Set(
+        todayCollections.map(
+          (item) =>
+            item.areaId
+        )
       );
+
+    const todayAreas =
+      todayAreaIds.size;
+
+    /* =================================================
+       TODAY'S SUPPLIER CONTRIBUTIONS
+    ================================================= */
+
+    const todayContributions =
+      await SupplierTeaCollection.find(
+        {
+          date: {
+            $gte: todayStart,
+            $lt: tomorrowStart,
+          },
+        }
+      ).lean();
 
     const todaySupplierIds =
       new Set(
-        todayCollections.map(
-          (item) => item.supplierId
+        todayContributions.map(
+          (item) =>
+            item.supplierId
         )
       );
 
@@ -150,221 +238,338 @@ export async function GET() {
       todaySupplierIds.size;
 
     /*
-     * ----------------------------------------
-     * MONTHLY COLLECTION
-     * ----------------------------------------
+     * Payments / rates are not part
+     * of the new collection flow yet.
      */
 
+    const todayValue = 0;
+
+    /* =================================================
+       MONTHLY AREA COLLECTION
+    ================================================= */
+
     const monthlyCollections =
-      await TeaCollection.find({
-        date: {
-          $gte: monthStart,
-          $lt: nextMonthStart,
-        },
-      })
-        .sort({ date: -1 })
+      await DailyAreaCollection.find(
+        {
+          date: {
+            $gte: monthStart,
+            $lt: nextMonthStart,
+          },
+        }
+      )
+        .sort({
+          date: -1,
+        })
         .lean();
 
     const monthlyKg =
       monthlyCollections.reduce(
         (sum, item) =>
-          sum + Number(item.weightKg || 0),
+          sum +
+          Number(
+            item.totalKg || 0
+          ),
         0
       );
 
-    const monthlyValue =
-      monthlyCollections.reduce(
-        (sum, item) =>
-          sum + Number(item.totalAmount || 0),
-        0
+    const monthlyAreaIds =
+      new Set(
+        monthlyCollections.map(
+          (item) =>
+            item.areaId
+        )
       );
+
+    const monthlyAreas =
+      monthlyAreaIds.size;
+
+    /* =================================================
+       MONTHLY SUPPLIER CONTRIBUTIONS
+    ================================================= */
+
+    const monthlyContributions =
+      await SupplierTeaCollection.find(
+        {
+          date: {
+            $gte: monthStart,
+            $lt: nextMonthStart,
+          },
+        }
+      ).lean();
 
     const monthlySupplierIds =
       new Set(
-        monthlyCollections.map(
-          (item) => item.supplierId
+        monthlyContributions.map(
+          (item) =>
+            item.supplierId
         )
       );
 
     const monthlySuppliers =
       monthlySupplierIds.size;
 
-    /*
-     * ----------------------------------------
-     * TOTAL / ACTIVE DATA
-     * ----------------------------------------
-     */
+    const monthlyValue = 0;
+
+    /* =================================================
+       AREA / SUPPLIER COUNTS
+    ================================================= */
 
     const [
       totalAreas,
       activeAreas,
       totalSuppliers,
       activeSuppliers,
-    ] = await Promise.all([
-      Area.countDocuments(),
+    ] =
+      await Promise.all([
+        Area.countDocuments(),
 
-      Area.countDocuments({
-        status: "Active",
-      }),
+        Area.countDocuments({
+          status: "Active",
+        }),
 
-      Supplier.countDocuments(),
+        Supplier.countDocuments(),
 
-      Supplier.countDocuments({
-        status: "Active",
-      }),
-    ]);
+        Supplier.countDocuments({
+          status: "Active",
+        }),
+      ]);
 
-    /*
-     * ----------------------------------------
-     * LAST 7 DAYS
-     * ----------------------------------------
-     */
+    /* =================================================
+       LAST 7 DAYS
+    ================================================= */
 
     const sevenDayCollections =
-      await TeaCollection.find({
-        date: {
-          $gte: sevenDaysAgo,
-          $lt: tomorrowStart,
-        },
-      })
-        .sort({ date: 1 })
+      await DailyAreaCollection.find(
+        {
+          date: {
+            $gte:
+              sevenDaysAgo,
+
+            $lt:
+              tomorrowStart,
+          },
+        }
+      )
+        .sort({
+          date: 1,
+        })
         .lean();
 
-    const dailyMap = new Map<
-      string,
-      number
-    >();
+    const dailyMap =
+      new Map<
+        string,
+        number
+      >();
 
-    for (let i = 0; i < 7; i++) {
-      const currentDate = addDays(
-        sevenDaysAgo,
-        i
-      );
+    /*
+     * Create all 7 dates first.
+     */
 
-      const dateKey =
-        getSriLankaDate(currentDate);
+    for (
+      let i = 0;
+      i < 7;
+      i++
+    ) {
+      const currentDate =
+        addDays(
+          sevenDaysAgo,
+          i
+        );
 
-      dailyMap.set(dateKey, 0);
-    }
-
-    for (const collection of sevenDayCollections) {
       const dateKey =
         getSriLankaDate(
-          new Date(collection.date)
+          currentDate
+        );
+
+      dailyMap.set(
+        dateKey,
+        0
+      );
+    }
+
+    /*
+     * Add area totals.
+     */
+
+    for (
+      const collection of
+        sevenDayCollections
+    ) {
+      const dateKey =
+        getSriLankaDate(
+          new Date(
+            collection.date
+          )
         );
 
       const current =
-        dailyMap.get(dateKey) || 0;
+        dailyMap.get(
+          dateKey
+        ) || 0;
 
       dailyMap.set(
         dateKey,
         current +
           Number(
-            collection.weightKg || 0
+            collection.totalKg ||
+              0
           )
       );
     }
 
-    const dailyData = Array.from(
-      dailyMap.entries()
-    ).map(([date, kg]) => {
-      const dateObject = new Date(
-        `${date}T00:00:00+05:30`
+    const dailyData =
+      Array.from(
+        dailyMap.entries()
+      ).map(
+        ([date, kg]) => {
+          const dateObject =
+            new Date(
+              `${date}T00:00:00+05:30`
+            );
+
+          return {
+            date,
+
+            day: new Intl.DateTimeFormat(
+              "en-US",
+              {
+                timeZone:
+                  "Asia/Colombo",
+
+                day: "2-digit",
+              }
+            ).format(
+              dateObject
+            ),
+
+            kg,
+          };
+        }
       );
 
-      return {
-        date,
-        day: new Intl.DateTimeFormat(
-          "en-US",
-          {
-            timeZone: "Asia/Colombo",
-            day: "2-digit",
-          }
-        ).format(dateObject),
-        kg,
-      };
-    });
-
-    /*
-     * ----------------------------------------
-     * RECENT COLLECTIONS
-     * ----------------------------------------
-     */
+    /* =================================================
+       RECENT AREA COLLECTIONS
+    ================================================= */
 
     const recentCollections =
-      await TeaCollection.find({})
-        .sort({ date: -1, createdAt: -1 })
+      await DailyAreaCollection.find(
+        {}
+      )
+        .sort({
+          date: -1,
+          createdAt: -1,
+        })
         .limit(8)
         .lean();
 
     const formattedRecent =
       recentCollections.map(
         (collection) => ({
-          id: collection.collectionId,
+          id:
+            collection.collectionId,
+
+          /*
+           * New system is area-wise.
+           * Supplier is added later.
+           */
           supplier:
-            collection.supplierName,
+            "Area Collection",
+
           supplierId:
-            collection.supplierId,
-          area: collection.areaName,
-          areaId: collection.areaId,
-          kg: Number(
-            collection.weightKg || 0
-          ),
-          rate: Number(
-            collection.ratePerKg || 0
-          ),
-          amount: Number(
-            collection.totalAmount || 0
-          ),
-          date: collection.date,
+            "",
+
+          area:
+            collection.areaName,
+
+          areaId:
+            collection.areaId,
+
+          kg:
+            Number(
+              collection.totalKg ||
+                0
+            ),
+
+          /*
+           * Rate/payment
+           * will be added later.
+           */
+          rate: 0,
+
+          amount: 0,
+
+          date:
+            collection.date,
         })
       );
 
-    /*
-     * ----------------------------------------
-     * AVERAGE DAILY
-     * ----------------------------------------
-     */
+    /* =================================================
+       AVERAGE DAILY
+    ================================================= */
 
-    const daysPassed = Math.max(
-      1,
-      Math.ceil(
-        (now.getTime() -
-          monthStart.getTime()) /
-          (1000 * 60 * 60 * 24)
-      )
-    );
+    const daysPassed =
+      Math.max(
+        1,
+
+        Math.ceil(
+          (now.getTime() -
+            monthStart.getTime()) /
+            (1000 *
+              60 *
+              60 *
+              24)
+        )
+      );
 
     const averageDaily =
-      monthlyKg / daysPassed;
+      monthlyKg /
+      daysPassed;
 
-    /*
-     * ----------------------------------------
-     * RESPONSE
-     * ----------------------------------------
-     */
+    /* =================================================
+       RESPONSE
+    ================================================= */
 
     return NextResponse.json({
       success: true,
 
       date: {
-        today: getSriLankaDate(now),
+        today:
+          getSriLankaDate(
+            now
+          ),
+
         year,
+
         month,
+
         day,
       },
 
       stats: {
         todayKg,
+
+        todayAreas,
+
         todaySuppliers,
+
         todayValue,
+
         monthlyKg,
+
+        monthlyAreas,
+
         totalAreas,
+
         activeAreas,
+
         totalSuppliers,
+
         activeSuppliers,
+
         monthlySuppliers,
+
         monthlyValue,
+
         averageDaily,
       },
 
@@ -375,15 +580,18 @@ export async function GET() {
     });
   } catch (error) {
     console.error(
-      "Dashboard API error:",
+      "DASHBOARD API ERROR:",
       error
     );
 
     return NextResponse.json(
       {
         success: false,
+
         message:
-          "Failed to load dashboard data",
+          error instanceof Error
+            ? error.message
+            : "Failed to load dashboard data",
       },
       {
         status: 500,

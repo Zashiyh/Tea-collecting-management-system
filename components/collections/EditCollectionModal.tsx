@@ -17,17 +17,54 @@ interface Area {
   status: string;
 }
 
-interface CollectionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAdded: () => void;
+interface Collection {
+  collectionId: string;
+  date: string;
+  areaId: string;
+  areaName: string;
+  totalKg: number;
+  factoryWeightKg: number;
+  differenceKg: number;
+  notes?: string;
 }
 
-export default function CollectionModal({
+interface EditCollectionModalProps {
+  isOpen: boolean;
+  collection:
+    | Collection
+    | null;
+  onClose: () => void;
+  onUpdated: () => void;
+}
+
+function formatInputDate(
+  date: string
+) {
+  const value =
+    new Date(date);
+
+  const year =
+    value.getFullYear();
+
+  const month =
+    String(
+      value.getMonth() + 1
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      value.getDate()
+    ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+export default function EditCollectionModal({
   isOpen,
+  collection,
   onClose,
-  onAdded,
-}: CollectionModalProps) {
+  onUpdated,
+}: EditCollectionModalProps) {
   const [date, setDate] =
     useState("");
 
@@ -35,6 +72,9 @@ export default function CollectionModal({
     useState("");
 
   const [totalKg, setTotalKg] =
+    useState("");
+
+  const [notes, setNotes] =
     useState("");
 
   const [areas, setAreas] =
@@ -49,33 +89,41 @@ export default function CollectionModal({
   const [error, setError] =
     useState("");
 
-  /* =========================
-     LOAD AREAS
-  ========================= */
-
   useEffect(() => {
-    if (!isOpen) return;
+    if (
+      !isOpen ||
+      !collection
+    ) {
+      return;
+    }
+
+    setDate(
+      formatInputDate(
+        collection.date
+      )
+    );
+
+    setAreaId(
+      collection.areaId
+    );
+
+    setTotalKg(
+      String(
+        collection.totalKg
+      )
+    );
+
+    setNotes(
+      collection.notes || ""
+    );
+
+    setError("");
 
     loadAreas();
-
-    const today =
-      new Date();
-
-    const formatted =
-      today.toLocaleDateString(
-        "en-CA",
-        {
-          timeZone:
-            "Asia/Colombo",
-        }
-      );
-
-    setDate(formatted);
-
-    setAreaId("");
-    setTotalKg("");
-    setError("");
-  }, [isOpen]);
+  }, [
+    isOpen,
+    collection,
+  ]);
 
   async function loadAreas() {
     try {
@@ -103,22 +151,14 @@ export default function CollectionModal({
         );
       }
 
-      const activeAreas =
+      setAreas(
         (data.areas || []).filter(
           (area: Area) =>
             area.status ===
             "Active"
-        );
-
-      setAreas(
-        activeAreas
+        )
       );
     } catch (error) {
-      console.error(
-        "LOAD AREAS ERROR:",
-        error
-      );
-
       setError(
         error instanceof Error
           ? error.message
@@ -129,147 +169,30 @@ export default function CollectionModal({
     }
   }
 
-  /* =========================
-     KG FORMAT
-  ========================= */
-
-  function handleKgChange(
-    value: string
-  ) {
-    /*
-      Remove commas first
-      Example:
-      50,000 -> 50000
-    */
-    const rawValue =
-      value.replace(
-        /,/g,
-        ""
-      );
-
-    /*
-      Allow only numbers
-      and one decimal point
-    */
-    const cleanedValue =
-      rawValue.replace(
-        /[^\d.]/g,
-        ""
-      );
-
-    if (!cleanedValue) {
-      setTotalKg("");
-      return;
-    }
-
-    /*
-      Prevent multiple decimal points
-    */
-    const parts =
-      cleanedValue.split(".");
-
-    const integerPart =
-      parts[0];
-
-    const decimalPart =
-      parts.length > 1
-        ? `.${parts[1].slice(
-            0,
-            2
-          )}`
-        : "";
-
-    /*
-      Add comma formatting
-      Example:
-      50000 -> 50,000
-      100000 -> 100,000
-      1250000 -> 1,250,000
-    */
-    const formattedInteger =
-      Number(
-        integerPart
-      ).toLocaleString(
-        "en-US"
-      );
-
-    setTotalKg(
-      `${formattedInteger}${decimalPart}`
-    );
-  }
-
-  /* =========================
-     SUBMIT
-  ========================= */
-
   async function handleSubmit(
     event: React.FormEvent
   ) {
     event.preventDefault();
 
+    if (!collection) {
+      return;
+    }
+
     setError("");
 
-    const cleanDate =
-      date.trim();
-
-    const cleanAreaId =
-      areaId.trim();
-
-    /*
-      IMPORTANT:
-      Remove commas before converting
-      50,000 -> 50000
-    */
-    const cleanKg =
-      totalKg
-        .replace(/,/g, "")
-        .trim();
-
     const kg =
-      Number(cleanKg);
+      Number(
+        totalKg.trim()
+      );
 
-    console.log(
-      "========== COLLECTION SUBMIT =========="
-    );
-
-    console.log(
-      "DATE:",
-      cleanDate
-    );
-
-    console.log(
-      "AREA ID:",
-      cleanAreaId
-    );
-
-    console.log(
-      "RAW KG:",
-      totalKg
-    );
-
-    console.log(
-      "CLEAN KG:",
-      cleanKg
-    );
-
-    console.log(
-      "NUMBER KG:",
-      kg
-    );
-
-    console.log(
-      "NUMBER KG TYPE:",
-      typeof kg
-    );
-
-    if (!cleanDate) {
+    if (!date) {
       setError(
         "Please select a date."
       );
       return;
     }
 
-    if (!cleanAreaId) {
+    if (!areaId) {
       setError(
         "Please select an area."
       );
@@ -281,7 +204,7 @@ export default function CollectionModal({
       kg <= 0
     ) {
       setError(
-        "Please enter a valid tea KG greater than 0."
+        "Please enter a valid KG greater than 0."
       );
       return;
     }
@@ -289,50 +212,34 @@ export default function CollectionModal({
     try {
       setSaving(true);
 
-      const payload = {
-        date: cleanDate,
-
-        areaId:
-          cleanAreaId,
-
-        /*
-          Send actual number
-          Example:
-          "50,000" -> 50000
-        */
-        totalKg: kg,
-      };
-
-      console.log(
-        "SENDING PAYLOAD:",
-        payload
-      );
-
       const response =
         await fetch(
-          "/api/collections",
+          `/api/collections/${encodeURIComponent(
+            collection.collectionId
+          )}`,
           {
-            method: "POST",
+            method: "PATCH",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body:
-              JSON.stringify(
-                payload
-              ),
+            cache:
+              "no-store",
+
+            body: JSON.stringify({
+              date,
+              areaId,
+              totalKg: kg,
+              notes:
+                notes.trim(),
+            }),
           }
         );
 
       const data =
         await response.json();
-
-      console.log(
-        "API RESPONSE:",
-        data
-      );
 
       if (
         !response.ok ||
@@ -340,56 +247,37 @@ export default function CollectionModal({
       ) {
         throw new Error(
           data.message ||
-            "Failed to save collection"
+            "Failed to update collection"
         );
       }
 
-      /*
-        Show API returned value
-      */
-      const savedKg =
-        Number(
-          data.collection
-            ?.totalKg || 0
-        );
-
-      const savedArea =
-        data.collection
-          ?.areaName ||
-        "";
-
       alert(
-        `Collection saved successfully!\n\nArea: ${savedArea}\nTotal: ${savedKg.toLocaleString(
-          "en-US"
-        )} KG`
+        `Collection updated successfully!\n\nArea: ${data.collection.areaName}\nTotal: ${Number(
+          data.collection.totalKg
+        ).toLocaleString()} KG`
       );
 
-      onAdded();
-
-      onClose();
-
-      setDate("");
-
-      setAreaId("");
-
-      setTotalKg("");
+      onUpdated();
     } catch (error) {
       console.error(
-        "SAVE COLLECTION ERROR:",
+        "UPDATE COLLECTION ERROR:",
         error
       );
 
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to save collection"
+          : "Failed to update collection"
       );
     } finally {
       setSaving(false);
     }
   }
 
-  if (!isOpen) {
+  if (
+    !isOpen ||
+    !collection
+  ) {
     return null;
   }
 
@@ -400,14 +288,16 @@ export default function CollectionModal({
         {/* Header */}
 
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+
           <div>
             <h2 className="text-lg font-semibold text-white">
-              Add Tea Collection
+              Edit Tea Collection
             </h2>
 
             <p className="mt-1 text-xs text-gray-500">
-              Add the total tea collected
-              for an area
+              {
+                collection.collectionId
+              }
             </p>
           </div>
 
@@ -415,7 +305,7 @@ export default function CollectionModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-lg p-2 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"
           >
             <X size={20} />
           </button>
@@ -446,7 +336,7 @@ export default function CollectionModal({
                 )
               }
               disabled={saving}
-              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-500"
+              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
             />
           </div>
 
@@ -468,7 +358,7 @@ export default function CollectionModal({
                 saving ||
                 loadingAreas
               }
-              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-500"
+              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
             >
               <option value="">
                 {loadingAreas
@@ -493,32 +383,47 @@ export default function CollectionModal({
             </select>
           </div>
 
-          {/* Total KG */}
+          {/* KG */}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-300">
               Total Tea KG
             </label>
 
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={totalKg}
-                onChange={(event) =>
-                  handleKgChange(
-                    event.target.value
-                  )
-                }
-                placeholder="Enter total KG"
-                disabled={saving}
-                className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 pr-14 text-sm text-white outline-none transition focus:border-emerald-500"
-              />
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={totalKg}
+              onChange={(event) =>
+                setTotalKg(
+                  event.target.value
+                )
+              }
+              disabled={saving}
+              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+            />
+          </div>
 
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">
-                KG
-              </span>
-            </div>
+          {/* Notes */}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-300">
+              Notes
+            </label>
+
+            <textarea
+              value={notes}
+              onChange={(event) =>
+                setNotes(
+                  event.target.value
+                )
+              }
+              rows={3}
+              disabled={saving}
+              placeholder="Optional notes..."
+              className="w-full resize-none rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+            />
           </div>
 
           {/* Error */}
@@ -531,13 +436,13 @@ export default function CollectionModal({
 
           {/* Buttons */}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3">
 
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-gray-300 hover:bg-white/10"
             >
               Cancel
             </button>
@@ -545,7 +450,7 @@ export default function CollectionModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
             >
               {saving ? (
                 <>
@@ -553,12 +458,12 @@ export default function CollectionModal({
                     size={17}
                     className="animate-spin"
                   />
-                  Saving...
+                  Updating...
                 </>
               ) : (
                 <>
                   <Save size={17} />
-                  Save Collection
+                  Update Collection
                 </>
               )}
             </button>
