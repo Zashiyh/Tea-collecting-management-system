@@ -1,21 +1,13 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import {
   X,
-  Save,
+  CalendarDays,
   Loader2,
+  Save,
 } from "lucide-react";
-
-interface Area {
-  areaId: string;
-  name: string;
-  status: string;
-}
 
 interface Collection {
   collectionId: string;
@@ -30,33 +22,9 @@ interface Collection {
 
 interface EditCollectionModalProps {
   isOpen: boolean;
-  collection:
-    | Collection
-    | null;
+  collection: Collection;
   onClose: () => void;
-  onUpdated: () => void;
-}
-
-function formatInputDate(
-  date: string
-) {
-  const value =
-    new Date(date);
-
-  const year =
-    value.getFullYear();
-
-  const month =
-    String(
-      value.getMonth() + 1
-    ).padStart(2, "0");
-
-  const day =
-    String(
-      value.getDate()
-    ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  onUpdated?: () => void | Promise<void>;
 }
 
 export default function EditCollectionModal({
@@ -65,51 +33,47 @@ export default function EditCollectionModal({
   onClose,
   onUpdated,
 }: EditCollectionModalProps) {
-  const [date, setDate] =
+  const [date, setDate] = useState("");
+  const [totalKg, setTotalKg] = useState("");
+  const [factoryWeightKg, setFactoryWeightKg] =
     useState("");
+  const [notes, setNotes] = useState("");
 
-  const [areaId, setAreaId] =
-    useState("");
-
-  const [totalKg, setTotalKg] =
-    useState("");
-
-  const [notes, setNotes] =
-    useState("");
-
-  const [areas, setAreas] =
-    useState<Area[]>([]);
-
-  const [loadingAreas, setLoadingAreas] =
-    useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (
-      !isOpen ||
-      !collection
-    ) {
+    if (!isOpen || !collection) {
       return;
     }
 
-    setDate(
-      formatInputDate(
-        collection.date
+    const existingDate = new Date(
+      collection.date
+    );
+
+    const formattedDate =
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Colombo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(existingDate);
+
+    setDate(formattedDate);
+
+    setTotalKg(
+      formatNumberWithCommas(
+        String(
+          collection.totalKg ?? ""
+        )
       )
     );
 
-    setAreaId(
-      collection.areaId
-    );
-
-    setTotalKg(
-      String(
-        collection.totalKg
+    setFactoryWeightKg(
+      formatNumberWithCommas(
+        String(
+          collection.factoryWeightKg ?? ""
+        )
       )
     );
 
@@ -118,72 +82,105 @@ export default function EditCollectionModal({
     );
 
     setError("");
+  }, [isOpen, collection]);
 
-    loadAreas();
-  }, [
-    isOpen,
-    collection,
-  ]);
-
-  async function loadAreas() {
-    try {
-      setLoadingAreas(true);
-
-      const response =
-        await fetch(
-          "/api/areas",
-          {
-            cache:
-              "no-store",
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !data.success
-      ) {
-        throw new Error(
-          data.message ||
-            "Failed to load areas"
-        );
-      }
-
-      setAreas(
-        (data.areas || []).filter(
-          (area: Area) =>
-            area.status ===
-            "Active"
-        )
-      );
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load areas"
-      );
-    } finally {
-      setLoadingAreas(false);
+  function formatNumberWithCommas(
+    value: string
+  ) {
+    if (!value) {
+      return "";
     }
+
+    const cleaned =
+      value.replace(/,/g, "");
+
+    if (cleaned === "") {
+      return "";
+    }
+
+    const parts =
+      cleaned.split(".");
+
+    const integerPart =
+      parts[0].replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        ","
+      );
+
+    if (parts.length > 1) {
+      return `${integerPart}.${parts[1]}`;
+    }
+
+    return integerPart;
   }
 
-  async function handleSubmit(
-    event: React.FormEvent
+  function removeCommas(
+    value: string
   ) {
-    event.preventDefault();
+    return value.replace(/,/g, "");
+  }
 
-    if (!collection) {
+  function handleTeaWeightChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const value = removeCommas(
+      e.target.value
+    );
+
+    if (!/^\d*\.?\d*$/.test(value)) {
       return;
     }
 
-    setError("");
+    setTotalKg(
+      formatNumberWithCommas(value)
+    );
+  }
 
-    const kg =
-      Number(
-        totalKg.trim()
-      );
+  function handleFactoryWeightChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const value = removeCommas(
+      e.target.value
+    );
+
+    if (!/^\d*\.?\d*$/.test(value)) {
+      return;
+    }
+
+    setFactoryWeightKg(
+      formatNumberWithCommas(value)
+    );
+  }
+
+  const teaWeight =
+    Number(
+      removeCommas(totalKg)
+    ) || 0;
+
+  const factoryWeight =
+    Number(
+      removeCommas(factoryWeightKg)
+    ) || 0;
+
+  /*
+   * IMPORTANT
+   *
+   * Difference =
+   * Factory Weight - Tea Weight
+   */
+  const difference = Number(
+    (
+      factoryWeight -
+      teaWeight
+    ).toFixed(2)
+  );
+
+  async function handleSubmit(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
+    e.preventDefault();
+
+    setError("");
 
     if (!date) {
       setError(
@@ -192,19 +189,36 @@ export default function EditCollectionModal({
       return;
     }
 
-    if (!areaId) {
+    if (!totalKg) {
       setError(
-        "Please select an area."
+        "Please enter a valid Tea Weight."
       );
       return;
     }
 
     if (
-      !Number.isFinite(kg) ||
-      kg <= 0
+      !Number.isFinite(teaWeight) ||
+      teaWeight < 0
     ) {
       setError(
-        "Please enter a valid KG greater than 0."
+        "Please enter a valid Tea Weight."
+      );
+      return;
+    }
+
+    if (!factoryWeightKg) {
+      setError(
+        "Please enter a valid Factory Weight."
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(factoryWeight) ||
+      factoryWeight < 0
+    ) {
+      setError(
+        "Please enter a valid Factory Weight."
       );
       return;
     }
@@ -212,61 +226,69 @@ export default function EditCollectionModal({
     try {
       setSaving(true);
 
-      const response =
-        await fetch(
-          `/api/collections/${encodeURIComponent(
-            collection.collectionId
-          )}`,
-          {
-            method: "PATCH",
+      const response = await fetch(
+        `/api/collections/${encodeURIComponent(
+          collection.collectionId
+        )}`,
+        {
+          method: "PATCH",
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-            cache:
-              "no-store",
+          body: JSON.stringify({
+            date,
 
-            body: JSON.stringify({
-              date,
-              areaId,
-              totalKg: kg,
-              notes:
-                notes.trim(),
-            }),
-          }
+            /*
+             * Tea Weight can now be edited.
+             */
+            totalKg: teaWeight,
+
+            /*
+             * Factory Weight can also be edited.
+             */
+            factoryWeightKg:
+              factoryWeight,
+
+            notes:
+              notes.trim(),
+          }),
+        }
+      );
+
+      const text =
+        await response.text();
+
+      let data;
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : {};
+      } catch {
+        throw new Error(
+          "Invalid server response"
         );
+      }
 
-      const data =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok) {
         throw new Error(
           data.message ||
             "Failed to update collection"
         );
       }
 
-      alert(
-        `Collection updated successfully!\n\nArea: ${data.collection.areaName}\nTotal: ${Number(
-          data.collection.totalKg
-        ).toLocaleString()} KG`
-      );
+      await onUpdated?.();
 
-      onUpdated();
-    } catch (error) {
-      console.error(
-        "UPDATE COLLECTION ERROR:",
-        error
-      );
+      onClose();
+    } catch (err) {
+      console.error(err);
 
       setError(
-        error instanceof Error
-          ? error.message
+        err instanceof Error
+          ? err.message
           : "Failed to update collection"
       );
     } finally {
@@ -274,30 +296,23 @@ export default function EditCollectionModal({
     }
   }
 
-  if (
-    !isOpen ||
-    !collection
-  ) {
+  if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0d1811] shadow-2xl">
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1510] shadow-2xl shadow-black/40">
         {/* Header */}
-
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-xl font-semibold text-white">
               Edit Tea Collection
             </h2>
 
-            <p className="mt-1 text-xs text-gray-500">
-              {
-                collection.collectionId
-              }
+            <p className="mt-1 text-sm text-gray-400">
+              Update collection date and
+              weights.
             </p>
           </div>
 
@@ -305,144 +320,206 @@ export default function EditCollectionModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white"
+            className="rounded-xl p-2 text-gray-400 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Form */}
-
         <form
-          onSubmit={
-            handleSubmit
-          }
-          className="space-y-5 p-5"
+          onSubmit={handleSubmit}
+          className="p-6"
         >
+          <div className="space-y-5">
+            {/* Collection ID */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-200">
+                Collection ID
+              </label>
 
-          {/* Date */}
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Collection Date
-            </label>
-
-            <input
-              type="date"
-              value={date}
-              onChange={(event) =>
-                setDate(
-                  event.target.value
-                )
-              }
-              disabled={saving}
-              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Area */}
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Area
-            </label>
-
-            <select
-              value={areaId}
-              onChange={(event) =>
-                setAreaId(
-                  event.target.value
-                )
-              }
-              disabled={
-                saving ||
-                loadingAreas
-              }
-              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
-            >
-              <option value="">
-                {loadingAreas
-                  ? "Loading areas..."
-                  : "Select Area"}
-              </option>
-
-              {areas.map(
-                (area) => (
-                  <option
-                    key={
-                      area.areaId
-                    }
-                    value={
-                      area.areaId
-                    }
-                  >
-                    {area.name}
-                  </option>
-                )
-              )}
-            </select>
-          </div>
-
-          {/* KG */}
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Total Tea KG
-            </label>
-
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={totalKg}
-              onChange={(event) =>
-                setTotalKg(
-                  event.target.value
-                )
-              }
-              disabled={saving}
-              className="w-full rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Notes */}
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Notes
-            </label>
-
-            <textarea
-              value={notes}
-              onChange={(event) =>
-                setNotes(
-                  event.target.value
-                )
-              }
-              rows={3}
-              disabled={saving}
-              placeholder="Optional notes..."
-              className="w-full resize-none rounded-xl border border-white/10 bg-[#07100b] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          {/* Error */}
-
-          {error && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {error}
+              <div className="rounded-xl border border-white/10 bg-[#101c14] px-4 py-3 text-gray-400">
+                {collection.collectionId}
+              </div>
             </div>
-          )}
 
-          {/* Buttons */}
+            {/* Area */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-200">
+                Area
+              </label>
 
-          <div className="flex gap-3">
+              <div className="rounded-xl border border-white/10 bg-[#101c14] px-4 py-3 text-gray-400">
+                {collection.areaName}
+              </div>
+            </div>
 
+            {/* Date */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-200">
+                Collection Date
+              </label>
+
+              <div className="relative">
+                <CalendarDays
+                  size={19}
+                  strokeWidth={2}
+                  className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-white"
+                />
+
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) =>
+                    setDate(
+                      e.target.value
+                    )
+                  }
+                  disabled={saving}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#101c14] py-3 pl-12 pr-4 text-white outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{
+                    colorScheme: "dark",
+                  }}
+                />
+              </div>
+
+              <p className="mt-1.5 text-xs text-gray-500">
+                You can change the
+                collection date.
+              </p>
+            </div>
+
+            {/* Weight Fields */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {/* Tea Weight */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-200">
+                  Tea Weight / Area Weight
+                </label>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={totalKg}
+                    onChange={
+                      handleTeaWeightChange
+                    }
+                    placeholder="e.g. 40,000"
+                    disabled={saving}
+                    className="w-full rounded-xl border border-white/10 bg-[#101c14] px-4 py-3 pr-16 text-white outline-none transition placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-emerald-400">
+                    KG
+                  </span>
+                </div>
+              </div>
+
+              {/* Factory Weight */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-200">
+                  Factory Weight
+                </label>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={
+                      factoryWeightKg
+                    }
+                    onChange={
+                      handleFactoryWeightChange
+                    }
+                    placeholder="e.g. 50,000"
+                    disabled={saving}
+                    className="w-full rounded-xl border border-white/10 bg-[#101c14] px-4 py-3 pr-16 text-white outline-none transition placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-emerald-400">
+                    KG
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Difference */}
+            <div className="rounded-xl border border-emerald-500/10 bg-[#101c14] p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-gray-400">
+                    Weight Difference
+                  </p>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    Factory Weight − Tea
+                    Weight
+                  </p>
+                </div>
+
+                <div
+                  className={`text-xl font-bold ${
+                    difference > 0
+                      ? "text-cyan-400"
+                      : difference < 0
+                        ? "text-red-400"
+                        : "text-emerald-400"
+                  }`}
+                >
+                  {difference > 0
+                    ? "+"
+                    : ""}
+                  {difference.toLocaleString(
+                    "en-US",
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )}{" "}
+                  KG
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-200">
+                Notes
+                <span className="ml-1 text-gray-500">
+                  (Optional)
+                </span>
+              </label>
+
+              <textarea
+                value={notes}
+                onChange={(e) =>
+                  setNotes(
+                    e.target.value
+                  )
+                }
+                placeholder="Enter any notes..."
+                rows={3}
+                disabled={saving}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#101c14] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-gray-300 hover:bg-white/10"
+              className="rounded-xl border border-white/10 px-5 py-3 text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>
@@ -450,24 +527,23 @@ export default function EditCollectionModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? (
                 <>
                   <Loader2
-                    size={17}
+                    size={18}
                     className="animate-spin"
                   />
-                  Updating...
+                  Saving...
                 </>
               ) : (
                 <>
-                  <Save size={17} />
-                  Update Collection
+                  <Save size={18} />
+                  Save Changes
                 </>
               )}
             </button>
-
           </div>
         </form>
       </div>

@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-
 import { connectDB } from "@/lib/mongodb";
 import Area from "@/models/Area";
+import DailyAreaCollection from "@/models/DailyAreaCollection";
 
-function getSriLankaDateRange(
-  dateString: string
-) {
+const START_COLLECTION_ID = "AREA-COL";
+
+function getSriLankaDayRange(dateString: string) {
   const start = new Date(
     `${dateString}T00:00:00+05:30`
   );
 
   const end = new Date(
-    `${dateString}T23:59:59.999+05:30`
+    `${dateString}T00:00:00+05:30`
+  );
+
+  end.setTime(
+    end.getTime() + 24 * 60 * 60 * 1000
   );
 
   return {
@@ -21,28 +24,18 @@ function getSriLankaDateRange(
   };
 }
 
-/* =====================================================
-   GET COLLECTIONS
-===================================================== */
+function getSriLankaToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
-export async function GET(
-  request: Request
-) {
+export async function GET(request: Request) {
   try {
     await connectDB();
-
-    const db = mongoose.connection.db;
-
-    if (!db) {
-      throw new Error(
-        "MongoDB database connection not available"
-      );
-    }
-
-    const collection =
-      db.collection(
-        "dailyareacollections"
-      );
 
     const { searchParams } =
       new URL(request.url);
@@ -53,95 +46,72 @@ export async function GET(
     const date =
       searchParams.get("date");
 
-    const filter: Record<
-      string,
-      unknown
-    > = {};
+    const filter: Record<string, unknown> = {};
 
     if (areaId) {
       filter.areaId = areaId;
     }
 
-    /* --------------------------------
-       Date filter
-    -------------------------------- */
-
     if (date) {
-      const {
-        start,
-        end,
-      } = getSriLankaDateRange(date);
+      const { start, end } =
+        getSriLankaDayRange(date);
 
       filter.date = {
         $gte: start,
-        $lte: end,
+        $lt: end,
       };
     }
 
-    const documents =
-      await collection
-        .find(filter)
+    const collections =
+      await DailyAreaCollection.find(
+        filter
+      )
         .sort({
           date: -1,
           createdAt: -1,
         })
-        .toArray();
+        .lean();
 
-    const collections =
-      documents.map(
-        (document) => ({
-          _id: String(
-            document._id
-          ),
+    const formatted =
+      collections.map((item) => {
+        const teaWeight = Number(
+          item.totalKg || 0
+        );
 
-          collectionId:
-            document.collectionId,
+        const factoryWeight = Number(
+          item.factoryWeightKg || 0
+        );
 
-          date: document.date,
+        // IMPORTANT:
+        // Factory Weight - Tea Weight
+        const differenceKg = Number(
+          (
+            factoryWeight -
+            teaWeight
+          ).toFixed(2)
+        );
 
-          areaId:
-            document.areaId,
+        return {
+          ...item,
 
-          areaName:
-            document.areaName,
+          _id: item._id.toString(),
 
-          // Area / Tea weight
-          totalKg: Number(
-            document.totalKg ?? 0
-          ),
+          totalKg: teaWeight,
 
-          // Factory weight
           factoryWeightKg:
-            Number(
-              document.factoryWeightKg ??
-                0
-            ),
+            factoryWeight,
 
-          // Difference
-          differenceKg:
-            Number(
-              document.differenceKg ??
-                0
-            ),
-
-          notes:
-            document.notes || "",
-
-          createdAt:
-            document.createdAt,
-
-          updatedAt:
-            document.updatedAt,
-        })
-      );
+          differenceKg,
+        };
+      });
 
     return NextResponse.json({
       success: true,
-      collections,
+      collections: formatted,
     });
   } catch (error) {
     console.error(
-      "GET COLLECTIONS ERROR:",
+      "COLLECTIONS GET ERROR:",
       error
     );
 
@@ -152,64 +122,34 @@ export async function GET(
           error instanceof Error
             ? error.message
             : "Failed to load collections",
+        collections: [],
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
 
-/* =====================================================
-   POST COLLECTION
-===================================================== */
-
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
     await connectDB();
 
-    const db = mongoose.connection.db;
+    const body = await request.json();
 
-    if (!db) {
-      throw new Error(
-        "MongoDB database connection not available"
-      );
-    }
-
-    const body =
-      await request.json();
-
-    const date = String(
-      body.date || ""
-    ).trim();
-
-    const areaId = String(
-      body.areaId || ""
-    ).trim();
-
-    const totalKg = Number(
-      body.totalKg
-    );
-
-    const factoryWeightKg =
-      Number(
-        body.factoryWeightKg
-      );
-
-    const notes = String(
-      body.notes || ""
-    ).trim();
-
-    /* --------------------------------
-       Validation
-    -------------------------------- */
+    const {
+      date,
+      areaId,
+      totalKg,
+      factoryWeightKg,
+      notes,
+    } = body;
 
     if (!date) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Collection date is required",
+          message: "Date is required",
         },
         { status: 400 }
       );
@@ -219,18 +159,20 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Area is required",
+          message: "Area is required",
         },
         { status: 400 }
       );
     }
 
+    const teaWeight = Number(totalKg);
+
+    const factoryWeight =
+      Number(factoryWeightKg);
+
     if (
-      !Number.isFinite(
-        totalKg
-      ) ||
-      totalKg <= 0
+      !Number.isFinite(teaWeight) ||
+      teaWeight < 0
     ) {
       return NextResponse.json(
         {
@@ -243,10 +185,8 @@ export async function POST(
     }
 
     if (
-      !Number.isFinite(
-        factoryWeightKg
-      ) ||
-      factoryWeightKg < 0
+      !Number.isFinite(factoryWeight) ||
+      factoryWeight < 0
     ) {
       return NextResponse.json(
         {
@@ -257,34 +197,6 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    /* --------------------------------
-       Validate date
-    -------------------------------- */
-
-    const selectedDate =
-      new Date(
-        `${date}T00:00:00+05:30`
-      );
-
-    if (
-      Number.isNaN(
-        selectedDate.getTime()
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid collection date",
-        },
-        { status: 400 }
-      );
-    }
-
-    /* --------------------------------
-       Find area
-    -------------------------------- */
 
     const area =
       await Area.findOne({
@@ -297,161 +209,98 @@ export async function POST(
         {
           success: false,
           message:
-            "Selected area was not found or is inactive",
+            "Active area not found",
         },
         { status: 404 }
       );
     }
 
-    /* --------------------------------
-       Difference
-       
-       Tea Weight - Factory Weight
-    -------------------------------- */
-
-    const differenceKg =
-      Number(
-        (
-          totalKg -
-          factoryWeightKg
-        ).toFixed(2)
-      );
-
-    const collection =
-      db.collection(
-        "dailyareacollections"
-      );
-
-    /* --------------------------------
-       Check same area + same date
-    -------------------------------- */
-
-    const start =
-      new Date(
-        `${date}T00:00:00+05:30`
-      );
-
-    const end =
-      new Date(
-        `${date}T23:59:59.999+05:30`
-      );
+    const {
+      start,
+      end,
+    } = getSriLankaDayRange(date);
 
     const existing =
-      await collection.findOne({
+      await DailyAreaCollection.findOne({
         areaId,
         date: {
           $gte: start,
-          $lte: end,
+          $lt: end,
         },
       });
 
-    /* --------------------------------
-       If already exists
-       
-       Update it instead of creating
-       duplicate collection
-    -------------------------------- */
+    // IMPORTANT:
+    // Factory Weight - Tea Weight
+    const differenceKg = Number(
+      (
+        factoryWeight -
+        teaWeight
+      ).toFixed(2)
+    );
 
     if (existing) {
-      await collection.updateOne(
-        {
-          _id: existing._id,
-        },
-        {
-          $set: {
-            date: selectedDate,
-            areaId: area.areaId,
-            areaName: area.name,
+      existing.date = start;
 
-            totalKg,
+      existing.areaId =
+        area.areaId;
 
-            factoryWeightKg,
+      existing.areaName =
+        area.name;
 
-            differenceKg,
+      existing.totalKg =
+        teaWeight;
 
-            notes,
+      existing.factoryWeightKg =
+        factoryWeight;
 
-            updatedAt:
-              new Date(),
-          },
-        }
-      );
+      existing.differenceKg =
+        differenceKg;
 
-      const updated =
-        await collection.findOne({
-          _id: existing._id,
-        });
+      existing.notes =
+        typeof notes === "string"
+          ? notes.trim()
+          : "";
+
+      await existing.save();
 
       return NextResponse.json({
         success: true,
         message:
           "Collection updated successfully",
-
         collection: {
-          _id: String(
-            updated?._id
-          ),
-
           collectionId:
-            updated?.collectionId,
-
-          date:
-            updated?.date,
-
+            existing.collectionId,
+          date: existing.date,
           areaId:
-            updated?.areaId,
-
+            existing.areaId,
           areaName:
-            updated?.areaName,
-
-          totalKg: Number(
-            updated?.totalKg ?? 0
-          ),
-
+            existing.areaName,
+          totalKg:
+            existing.totalKg,
           factoryWeightKg:
-            Number(
-              updated?.factoryWeightKg ??
-                0
-            ),
-
+            existing.factoryWeightKg,
           differenceKg:
-            Number(
-              updated?.differenceKg ??
-                0
-            ),
-
+            existing.differenceKg,
           notes:
-            updated?.notes || "",
+            existing.notes,
         },
       });
     }
 
-    /* --------------------------------
-       Generate collection ID
-    -------------------------------- */
-
     const lastCollection =
-      await collection
-        .find({})
+      await DailyAreaCollection.findOne({})
         .sort({
           collectionId: -1,
         })
-        .limit(1)
-        .toArray();
+        .lean();
 
     let nextNumber = 1;
 
     if (
-      lastCollection.length > 0
+      lastCollection?.collectionId
     ) {
-      const lastId =
-        String(
-          lastCollection[0]
-            .collectionId || ""
-        );
-
       const match =
-        lastId.match(
+        lastCollection.collectionId.match(
           /(\d+)$/
         );
 
@@ -462,82 +311,76 @@ export async function POST(
     }
 
     const collectionId =
-      `AREA-COL-${String(
+      `${START_COLLECTION_ID}-${String(
         nextNumber
       ).padStart(3, "0")}`;
 
-    /* --------------------------------
-       Create collection
-    -------------------------------- */
+    const collection =
+      await DailyAreaCollection.create({
+        collectionId,
 
-    const newCollection = {
-      collectionId,
+        date: start,
 
-      date: selectedDate,
+        areaId:
+          area.areaId,
 
-      areaId: area.areaId,
+        areaName:
+          area.name,
 
-      areaName: area.name,
+        totalKg:
+          teaWeight,
 
-      // Tea weight
-      totalKg,
+        factoryWeightKg:
+          factoryWeight,
 
-      // Factory weight
-      factoryWeightKg,
+        differenceKg,
 
-      // Difference
-      differenceKg,
-
-      notes,
-
-      createdAt:
-        new Date(),
-
-      updatedAt:
-        new Date(),
-    };
-
-    const result =
-      await collection.insertOne(
-        newCollection
-      );
+        notes:
+          typeof notes === "string"
+            ? notes.trim()
+            : "",
+      });
 
     return NextResponse.json(
       {
         success: true,
 
         message:
-          "Collection added successfully",
+          "Collection saved successfully",
 
         collection: {
-          _id: String(
-            result.insertedId
-          ),
+          collectionId:
+            collection.collectionId,
 
-          collectionId,
-
-          date: selectedDate,
+          date:
+            collection.date,
 
           areaId:
-            area.areaId,
+            collection.areaId,
 
           areaName:
-            area.name,
+            collection.areaName,
 
-          totalKg,
+          totalKg:
+            collection.totalKg,
 
-          factoryWeightKg,
+          factoryWeightKg:
+            collection.factoryWeightKg,
 
-          differenceKg,
+          differenceKg:
+            collection.differenceKg,
 
-          notes,
+          notes:
+            collection.notes,
         },
       },
-      { status: 201 }
+      {
+        status: 201,
+      }
     );
   } catch (error) {
     console.error(
-      "POST COLLECTION ERROR:",
+      "COLLECTION POST ERROR:",
       error
     );
 
@@ -549,7 +392,9 @@ export async function POST(
             ? error.message
             : "Failed to save collection",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }

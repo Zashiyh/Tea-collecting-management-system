@@ -2,49 +2,16 @@ import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
 import Area from "@/models/Area";
-import Supplier from "@/models/Supplier";
 import DailyAreaCollection from "@/models/DailyAreaCollection";
 
-/* =====================================================
-   SRI LANKA DATE HELPERS
-===================================================== */
-
-function getTodaySriLanka(): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Colombo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-
-  const year =
-    parts.find((part) => part.type === "year")?.value ?? "";
-
-  const month =
-    parts.find((part) => part.type === "month")?.value ?? "";
-
-  const day =
-    parts.find((part) => part.type === "day")?.value ?? "";
-
-  return `${year}-${month}-${day}`;
-}
-
-/* =====================================================
-   CREATE SRI LANKA DAY RANGE
-===================================================== */
+const START_DATE = "2026-10-01";
 
 function getSriLankaDayRange(dateString: string) {
-  const start = new Date(
-    `${dateString}T00:00:00+05:30`
-  );
+  const start = new Date(`${dateString}T00:00:00+05:30`);
 
-  const end = new Date(
-    `${dateString}T00:00:00+05:30`
-  );
+  const end = new Date(`${dateString}T00:00:00+05:30`);
 
-  end.setTime(
-    end.getTime() + 24 * 60 * 60 * 1000
-  );
+  end.setTime(end.getTime() + 24 * 60 * 60 * 1000);
 
   return {
     start,
@@ -52,275 +19,218 @@ function getSriLankaDayRange(dateString: string) {
   };
 }
 
-/* =====================================================
-   DASHBOARD GET
-===================================================== */
-
 export async function GET(request: Request) {
   try {
-    /* =================================================
-       DATABASE
-    ================================================= */
-
     await connectDB();
 
-    /* =================================================
-       SELECTED DATE
-    ================================================= */
-
-    const { searchParams } =
-      new URL(request.url);
-
-    const requestedDate =
-      searchParams.get("date");
+    const { searchParams } = new URL(request.url);
 
     const selectedDate =
-      requestedDate &&
-      /^\d{4}-\d{2}-\d{2}$/.test(
-        requestedDate
-      )
-        ? requestedDate
-        : getTodaySriLanka();
+      searchParams.get("date") ||
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Colombo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
 
-    const {
-      start,
-      end,
-    } =
-      getSriLankaDayRange(
-        selectedDate
-      );
+    const { start: startDate } =
+      getSriLankaDayRange(START_DATE);
 
-    console.log(
-      "DASHBOARD DATE:",
-      selectedDate
-    );
+    const { end: selectedDayEnd } =
+      getSriLankaDayRange(selectedDate);
 
-    console.log(
-      "DASHBOARD START:",
-      start.toISOString()
-    );
-
-    console.log(
-      "DASHBOARD END:",
-      end.toISOString()
-    );
-
-    /* =================================================
-       GET ALL ACTIVE AREAS
-    ================================================= */
-
-    const areas =
-      await Area.find({
-        status: "Active",
+    const areas = await Area.find({
+      status: "Active",
+    })
+      .sort({
+        name: 1,
       })
-        .sort({
-          name: 1,
-        })
-        .lean();
-
-    console.log(
-      "ACTIVE AREAS:",
-      areas.length
-    );
-
-    /* =================================================
-       GET COLLECTIONS FOR SELECTED DATE
-    ================================================= */
+      .lean();
 
     const collections =
       await DailyAreaCollection.find({
         date: {
-          $gte: start,
-          $lt: end,
+          $gte: startDate,
+          $lt: selectedDayEnd,
         },
       })
         .sort({
-          areaName: 1,
+          date: 1,
         })
         .lean();
 
-    console.log(
-      "DATE COLLECTIONS:",
-      collections.length
-    );
+    const areaMap = new Map<
+      string,
+      {
+        areaId: string;
+        areaName: string;
 
-    /* =================================================
-       CREATE AREA COLLECTION MAP
-    ================================================= */
+        totalTeaWeightKg: number;
+        totalFactoryWeightKg: number;
+        totalDifferenceKg: number;
 
-    const collectionMap =
-      new Map<
-        string,
-        (typeof collections)[number]
-      >();
+        collectionCount: number;
 
-    for (
-      const collection of collections
-    ) {
-      collectionMap.set(
-        collection.areaId,
-        collection
-      );
+        latestCollectionId?: string;
+      }
+    >();
+
+    for (const area of areas) {
+      areaMap.set(area.areaId, {
+        areaId: area.areaId,
+        areaName: area.name,
+
+        totalTeaWeightKg: 0,
+        totalFactoryWeightKg: 0,
+        totalDifferenceKg: 0,
+
+        collectionCount: 0,
+
+        latestCollectionId: undefined,
+      });
     }
 
-    /* =================================================
-       BUILD AREA DATA
-    ================================================= */
+    for (const collection of collections) {
+      const areaId = collection.areaId;
 
-    const areaResults =
-      areas.map((area) => {
-        const collection =
-          collectionMap.get(
-            area.areaId
-          );
+      const areaData = areaMap.get(areaId);
 
-        const teaWeightKg =
-          collection
-            ? Number(
-                collection.totalKg || 0
-              )
-            : 0;
+      if (!areaData) {
+        continue;
+      }
 
-        const factoryWeightKg =
-          collection
-            ? Number(
-                collection.factoryWeightKg ||
-                  0
-              )
-            : 0;
+      const teaWeight = Number(
+        collection.totalKg || 0
+      );
 
-        const differenceKg =
-          collection
-            ? Number(
-                collection.differenceKg ??
-                  teaWeightKg -
-                    factoryWeightKg
-              )
-            : 0;
+      const factoryWeight = Number(
+        collection.factoryWeightKg || 0
+      );
 
-        return {
-          areaId:
-            area.areaId,
+      // IMPORTANT:
+      // Factory Weight - Tea Weight
+      //
+      // 50,000 - 40,000 = +10,000
+      // 40,000 - 50,000 = -10,000
+      // 40,000 - 40,000 = 0
+      const difference = Number(
+        (factoryWeight - teaWeight).toFixed(2)
+      );
 
-          areaName:
-            area.name,
+      areaData.totalTeaWeightKg += teaWeight;
 
-          teaWeightKg,
+      areaData.totalFactoryWeightKg +=
+        factoryWeight;
 
-          factoryWeightKg,
+      areaData.totalDifferenceKg +=
+        difference;
 
-          differenceKg,
+      areaData.collectionCount += 1;
 
-          collectionId:
-            collection?.collectionId,
-        };
-      });
+      areaData.latestCollectionId =
+        collection.collectionId;
+    }
 
-    /* =================================================
-       CALCULATE TOTALS
-    ================================================= */
+    const dashboardAreas = Array.from(
+      areaMap.values()
+    ).map((area) => ({
+      areaId: area.areaId,
+      areaName: area.areaName,
+
+      totalTeaWeightKg: Number(
+        area.totalTeaWeightKg.toFixed(2)
+      ),
+
+      totalFactoryWeightKg: Number(
+        area.totalFactoryWeightKg.toFixed(2)
+      ),
+
+      // Factory Weight - Tea Weight
+      totalDifferenceKg: Number(
+        (
+          area.totalFactoryWeightKg -
+          area.totalTeaWeightKg
+        ).toFixed(2)
+      ),
+
+      collectionCount:
+        area.collectionCount,
+
+      latestCollectionId:
+        area.latestCollectionId,
+    }));
 
     const totalTeaWeightKg =
-      areaResults.reduce(
-        (
-          total,
-          area
-        ) =>
-          total +
-          Number(
-            area.teaWeightKg || 0
-          ),
+      dashboardAreas.reduce(
+        (total, area) =>
+          total + area.totalTeaWeightKg,
         0
       );
 
     const totalFactoryWeightKg =
-      areaResults.reduce(
-        (
-          total,
-          area
-        ) =>
-          total +
-          Number(
-            area.factoryWeightKg || 0
-          ),
+      dashboardAreas.reduce(
+        (total, area) =>
+          total + area.totalFactoryWeightKg,
         0
       );
 
-    const totalDifferenceKg =
-      areaResults.reduce(
-        (
-          total,
-          area
-        ) =>
-          total +
-          Number(
-            area.differenceKg || 0
-          ),
-        0
-      );
-
-    /* =================================================
-       COLLECTED AREAS
-    ================================================= */
-
-    const collectedAreas =
-      areaResults.filter(
-        (area) =>
-          Boolean(
-            area.collectionId
-          )
-      ).length;
-
-    /* =================================================
-       SUPPLIER COUNT
-    ================================================= */
-
-    const totalSuppliers =
-      await Supplier.countDocuments({
-        status: "Active",
-      });
-
-    /* =================================================
-       FINAL RESPONSE
-    ================================================= */
-
-    const response = {
-      success: true,
-
-      date: selectedDate,
-
-      summary: {
-        totalAreas:
-          areas.length,
-
-        collectedAreas,
-
-        totalTeaWeightKg,
-
-        totalFactoryWeightKg,
-
-        totalDifferenceKg,
-
-        totalSuppliers,
-      },
-
-      areas:
-        areaResults,
-    };
-
-    console.log(
-      "DASHBOARD RESPONSE:",
-      JSON.stringify(
-        response,
-        null,
-        2
-      )
+    // IMPORTANT:
+    // Factory Weight - Tea Weight
+    const totalDifferenceKg = Number(
+      (
+        totalFactoryWeightKg -
+        totalTeaWeightKg
+      ).toFixed(2)
     );
 
+    const totalCollections =
+      dashboardAreas.reduce(
+        (total, area) =>
+          total + area.collectionCount,
+        0
+      );
+
+    const collectedAreas =
+      dashboardAreas.filter(
+        (area) =>
+          area.collectionCount > 0
+      ).length;
+
     return NextResponse.json(
-      response,
+      {
+        success: true,
+
+        date: selectedDate,
+
+        fromDate: START_DATE,
+
+        toDate: selectedDate,
+
+        summary: {
+          totalAreas:
+            dashboardAreas.length,
+
+          collectedAreas,
+
+          totalTeaWeightKg: Number(
+            totalTeaWeightKg.toFixed(2)
+          ),
+
+          totalFactoryWeightKg: Number(
+            totalFactoryWeightKg.toFixed(2)
+          ),
+
+          totalDifferenceKg,
+
+          totalCollections,
+        },
+
+        areas: dashboardAreas,
+      },
       {
         status: 200,
+
         headers: {
           "Cache-Control":
             "no-store, no-cache, must-revalidate",
@@ -329,19 +239,8 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error(
-      "================================="
-    );
-
-    console.error(
-      "DASHBOARD API ERROR"
-    );
-
-    console.error(
+      "DASHBOARD API ERROR:",
       error
-    );
-
-    console.error(
-      "================================="
     );
 
     return NextResponse.json(
@@ -351,9 +250,13 @@ export async function GET(request: Request) {
         message:
           error instanceof Error
             ? error.message
-            : "Failed to load dashboard data",
+            : "Failed to load dashboard",
 
-        areas: [],
+        date: "",
+
+        fromDate: START_DATE,
+
+        toDate: "",
 
         summary: {
           totalAreas: 0,
@@ -361,8 +264,10 @@ export async function GET(request: Request) {
           totalTeaWeightKg: 0,
           totalFactoryWeightKg: 0,
           totalDifferenceKg: 0,
-          totalSuppliers: 0,
+          totalCollections: 0,
         },
+
+        areas: [],
       },
       {
         status: 500,

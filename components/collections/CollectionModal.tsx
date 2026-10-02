@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import {
   X,
   CalendarDays,
@@ -33,7 +34,9 @@ export default function CollectionModal({
   const [notes, setNotes] = useState("");
 
   const [areas, setAreas] = useState<Area[]>([]);
-  const [loadingAreas, setLoadingAreas] = useState(false);
+  const [loadingAreas, setLoadingAreas] =
+    useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,9 +67,12 @@ export default function CollectionModal({
       setLoadingAreas(true);
       setError("");
 
-      const response = await fetch("/api/areas", {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/areas",
+        {
+          cache: "no-store",
+        }
+      );
 
       const text = await response.text();
 
@@ -75,18 +81,24 @@ export default function CollectionModal({
       try {
         data = text ? JSON.parse(text) : {};
       } catch {
-        throw new Error("Invalid server response");
+        throw new Error(
+          "Invalid server response"
+        );
       }
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to load areas"
+          data.message ||
+            "Failed to load areas"
         );
       }
 
-      const activeAreas = Array.isArray(data.areas)
+      const activeAreas = Array.isArray(
+        data.areas
+      )
         ? data.areas.filter(
-            (area: Area) => area.status === "Active"
+            (area: Area) =>
+              area.status === "Active"
           )
         : [];
 
@@ -104,23 +116,31 @@ export default function CollectionModal({
 
   /*
    * Format number with commas.
-   * Example:
-   * 50000 -> 50,000
-   * 1250000 -> 1,250,000
+   *
+   * 50000
+   * -> 50,000
+   *
+   * 1250000
+   * -> 1,250,000
    */
-  function formatNumberWithCommas(value: string) {
+  function formatNumberWithCommas(
+    value: string
+  ) {
     if (!value) return "";
 
     const cleaned = value.replace(/,/g, "");
 
-    if (cleaned === "") return "";
+    if (cleaned === "") {
+      return "";
+    }
 
     const parts = cleaned.split(".");
 
-    const integerPart = parts[0].replace(
-      /\B(?=(\d{3})+(?!\d))/g,
-      ","
-    );
+    const integerPart =
+      parts[0].replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        ","
+      );
 
     if (parts.length > 1) {
       return `${integerPart}.${parts[1]}`;
@@ -130,9 +150,10 @@ export default function CollectionModal({
   }
 
   /*
-   * Convert formatted value back to a normal number string.
-   * Example:
-   * 50,000 -> 50000
+   * Remove commas.
+   *
+   * 50,000
+   * -> 50000
    */
   function removeCommas(value: string) {
     return value.replace(/,/g, "");
@@ -141,22 +162,40 @@ export default function CollectionModal({
   function handleTeaWeightChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const value = removeCommas(e.target.value);
+    const value = removeCommas(
+      e.target.value
+    );
 
-    // Allow only numbers and decimal values
+    /*
+     * Allow:
+     * 123
+     * 123.5
+     * 50000
+     * 50000.25
+     */
     if (!/^\d*\.?\d*$/.test(value)) {
       return;
     }
 
-    setTotalKg(formatNumberWithCommas(value));
+    setTotalKg(
+      formatNumberWithCommas(value)
+    );
   }
 
   function handleFactoryWeightChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const value = removeCommas(e.target.value);
+    const value = removeCommas(
+      e.target.value
+    );
 
-    // Allow only numbers and decimal values
+    /*
+     * Allow:
+     * 123
+     * 123.5
+     * 50000
+     * 50000.25
+     */
     if (!/^\d*\.?\d*$/.test(value)) {
       return;
     }
@@ -170,9 +209,43 @@ export default function CollectionModal({
     Number(removeCommas(totalKg)) || 0;
 
   const factoryWeight =
-    Number(removeCommas(factoryWeightKg)) || 0;
+    Number(
+      removeCommas(factoryWeightKg)
+    ) || 0;
 
-  const difference = teaWeight - factoryWeight;
+  /*
+   * ==========================================
+   * IMPORTANT DIFFERENCE CALCULATION
+   * ==========================================
+   *
+   * Factory Weight - Tea Weight
+   *
+   * Example:
+   *
+   * Tea Weight      = 40,000
+   * Factory Weight  = 50,000
+   *
+   * Difference      = +10,000
+   *
+   * -------------------------------
+   *
+   * Tea Weight      = 50,000
+   * Factory Weight  = 40,000
+   *
+   * Difference      = -10,000
+   *
+   * -------------------------------
+   *
+   * Tea Weight      = 40,000
+   * Factory Weight  = 40,000
+   *
+   * Difference      = 0
+   *
+   * ==========================================
+   */
+  const difference = Number(
+    (factoryWeight - teaWeight).toFixed(2)
+  );
 
   async function handleSubmit(
     e: React.FormEvent<HTMLFormElement>
@@ -182,23 +255,35 @@ export default function CollectionModal({
     setError("");
 
     if (!date) {
-      setError("Please select a date.");
+      setError(
+        "Please select a date."
+      );
       return;
     }
 
     if (!areaId) {
-      setError("Please select an area.");
+      setError(
+        "Please select an area."
+      );
       return;
     }
 
-    if (!totalKg || teaWeight < 0) {
+    if (
+      !totalKg ||
+      !Number.isFinite(teaWeight) ||
+      teaWeight < 0
+    ) {
       setError(
         "Please enter a valid Tea Weight."
       );
       return;
     }
 
-    if (!factoryWeightKg || factoryWeight < 0) {
+    if (
+      !factoryWeightKg ||
+      !Number.isFinite(factoryWeight) ||
+      factoryWeight < 0
+    ) {
       setError(
         "Please enter a valid Factory Weight."
       );
@@ -212,25 +297,45 @@ export default function CollectionModal({
         "/api/collections",
         {
           method: "POST",
+
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
+
           body: JSON.stringify({
             date,
             areaId,
-            totalKg: teaWeight,
-            factoryWeightKg: factoryWeight,
-            notes: notes.trim(),
+
+            totalKg:
+              teaWeight,
+
+            factoryWeightKg:
+              factoryWeight,
+
+            /*
+             * Send the correct difference too.
+             *
+             * Factory - Tea
+             */
+            differenceKg:
+              difference,
+
+            notes:
+              notes.trim(),
           }),
         }
       );
 
-      const text = await response.text();
+      const text =
+        await response.text();
 
       let data;
 
       try {
-        data = text ? JSON.parse(text) : {};
+        data = text
+          ? JSON.parse(text)
+          : {};
       } catch {
         throw new Error(
           "Invalid server response"
@@ -265,7 +370,6 @@ export default function CollectionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
       <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1510] shadow-2xl shadow-black/40">
-
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <div>
@@ -274,8 +378,8 @@ export default function CollectionModal({
             </h2>
 
             <p className="mt-1 text-sm text-gray-400">
-              Add daily tea and factory weights
-              for an area.
+              Add daily tea and factory
+              weights for an area.
             </p>
           </div>
 
@@ -295,7 +399,6 @@ export default function CollectionModal({
           className="p-6"
         >
           <div className="space-y-5">
-
             {/* Date */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-200">
@@ -313,7 +416,9 @@ export default function CollectionModal({
                   type="date"
                   value={date}
                   onChange={(e) =>
-                    setDate(e.target.value)
+                    setDate(
+                      e.target.value
+                    )
                   }
                   disabled={saving}
                   className="w-full rounded-xl border border-white/10 bg-[#101c14] py-3 pl-11 pr-4 text-white outline-none transition placeholder:text-gray-500 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
@@ -324,8 +429,8 @@ export default function CollectionModal({
               </div>
 
               <p className="mt-1.5 text-xs text-gray-500">
-                You can select today or any previous
-                date.
+                You can select today or
+                any previous date.
               </p>
             </div>
 
@@ -338,10 +443,13 @@ export default function CollectionModal({
               <select
                 value={areaId}
                 onChange={(e) =>
-                  setAreaId(e.target.value)
+                  setAreaId(
+                    e.target.value
+                  )
                 }
                 disabled={
-                  loadingAreas || saving
+                  loadingAreas ||
+                  saving
                 }
                 className="w-full rounded-xl border border-white/10 bg-[#101c14] px-4 py-3 text-white outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -368,7 +476,6 @@ export default function CollectionModal({
 
             {/* Weight Fields */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-
               {/* Tea Weight */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-200">
@@ -404,7 +511,9 @@ export default function CollectionModal({
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={factoryWeightKg}
+                    value={
+                      factoryWeightKg
+                    }
                     onChange={
                       handleFactoryWeightChange
                     }
@@ -429,19 +538,23 @@ export default function CollectionModal({
                   </p>
 
                   <p className="mt-1 text-xs text-gray-500">
-                    Tea Weight − Factory Weight
+                    Factory Weight − Tea
+                    Weight
                   </p>
                 </div>
 
                 <div
                   className={`text-xl font-bold ${
                     difference > 0
-                      ? "text-amber-400"
+                      ? "text-cyan-400"
                       : difference < 0
                         ? "text-red-400"
                         : "text-emerald-400"
                   }`}
                 >
+                  {difference > 0
+                    ? "+"
+                    : ""}
                   {difference.toLocaleString(
                     "en-US",
                     {
@@ -466,7 +579,9 @@ export default function CollectionModal({
               <textarea
                 value={notes}
                 onChange={(e) =>
-                  setNotes(e.target.value)
+                  setNotes(
+                    e.target.value
+                  )
                 }
                 placeholder="Enter any notes..."
                 rows={3}
@@ -485,7 +600,6 @@ export default function CollectionModal({
 
           {/* Footer */}
           <div className="mt-6 flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
-
             <button
               type="button"
               onClick={onClose}
@@ -498,7 +612,8 @@ export default function CollectionModal({
             <button
               type="submit"
               disabled={
-                saving || loadingAreas
+                saving ||
+                loadingAreas
               }
               className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -517,7 +632,6 @@ export default function CollectionModal({
                 </>
               )}
             </button>
-
           </div>
         </form>
       </div>
