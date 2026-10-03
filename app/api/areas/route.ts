@@ -1,7 +1,8 @@
-
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
+
 import Area from "@/models/Area";
 import Supplier from "@/models/Supplier";
 
@@ -11,6 +12,9 @@ import Supplier from "@/models/Supplier";
 
 export async function GET() {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const areas = await Area.find({})
@@ -42,6 +46,30 @@ export async function GET() {
       areas: formattedAreas,
     });
   } catch (error) {
+    /* =========================================
+       UNAUTHORIZED
+    ========================================= */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication required.",
+          areas: [],
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /* =========================================
+       SERVER ERROR
+    ========================================= */
+
     console.error(
       "GET AREAS ERROR:",
       error
@@ -71,6 +99,9 @@ export async function POST(
   request: Request
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const body = await request.json();
@@ -92,6 +123,10 @@ export async function POST(
         ? "Inactive"
         : "Active";
 
+    /* =========================================
+       VALIDATION
+    ========================================= */
+
     if (!areaId) {
       return NextResponse.json(
         {
@@ -112,7 +147,9 @@ export async function POST(
       );
     }
 
-    /* CHECK AREA ID */
+    /* =========================================
+       CHECK AREA ID
+    ========================================= */
 
     const existingAreaId =
       await Area.findOne({
@@ -130,7 +167,9 @@ export async function POST(
       );
     }
 
-    /* CHECK AREA NAME */
+    /* =========================================
+       CHECK AREA NAME
+    ========================================= */
 
     const existingName =
       await Area.findOne({
@@ -147,6 +186,10 @@ export async function POST(
         { status: 409 }
       );
     }
+
+    /* =========================================
+       CREATE AREA
+    ========================================= */
 
     const area = await Area.create({
       areaId,
@@ -173,6 +216,29 @@ export async function POST(
       }
     );
   } catch (error) {
+    /* =========================================
+       UNAUTHORIZED
+    ========================================= */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /* =========================================
+       SERVER ERROR
+    ========================================= */
+
     console.error(
       "CREATE AREA ERROR:",
       error
@@ -192,4 +258,3 @@ export async function POST(
     );
   }
 }
-

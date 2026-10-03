@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
 import DailyAreaCollection from "@/models/DailyAreaCollection";
 import SupplierTeaCollection from "@/models/SupplierTeaCollection";
 import Supplier from "@/models/Supplier";
@@ -19,6 +20,7 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
     await connectDB();
 
     const {
@@ -252,6 +254,20 @@ export async function PATCH(
       error
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,
@@ -273,6 +289,7 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
     await connectDB();
 
     const {
@@ -320,6 +337,20 @@ export async function DELETE(
       "DELETE SUPPLIER CONTRIBUTION ERROR:",
       error
     );
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
 
     return NextResponse.json(
       {

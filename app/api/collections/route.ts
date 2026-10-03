@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
+
 import Area from "@/models/Area";
 import DailyAreaCollection from "@/models/DailyAreaCollection";
 
@@ -35,6 +38,9 @@ function getSriLankaToday() {
 
 export async function GET(request: Request) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const { searchParams } =
@@ -110,6 +116,26 @@ export async function GET(request: Request) {
       collections: formatted,
     });
   } catch (error) {
+    /*
+     * UNAUTHORIZED
+     */
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+          collections: [],
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     console.error(
       "COLLECTIONS GET ERROR:",
       error
@@ -133,9 +159,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const {
       date,
@@ -379,6 +409,25 @@ export async function POST(request: Request) {
       }
     );
   } catch (error) {
+    /*
+     * UNAUTHORIZED
+     */
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     console.error(
       "COLLECTION POST ERROR:",
       error

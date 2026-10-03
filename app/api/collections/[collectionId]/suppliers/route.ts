@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
 import Supplier from "@/models/Supplier";
 import SupplierTeaCollection from "@/models/SupplierTeaCollection";
 
@@ -43,6 +44,8 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
+
     const { collectionId } =
       await context.params;
 
@@ -175,6 +178,21 @@ export async function GET(
       error
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+          contributions: [],
+        },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,
@@ -197,6 +215,8 @@ export async function POST(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
+
     const { collectionId } =
       await context.params;
 
@@ -414,6 +434,20 @@ export async function POST(
       "ADD SUPPLIER CONTRIBUTION ERROR:",
       error
     );
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
 
     return NextResponse.json(
       {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
 import Area from "@/models/Area";
 
 interface RouteContext {
@@ -62,6 +63,8 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
+
     const collection =
       await getMongoCollection();
 
@@ -150,6 +153,22 @@ export async function GET(
       error
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,
@@ -175,6 +194,8 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
+
     const collection =
       await getMongoCollection();
 
@@ -439,6 +460,22 @@ export async function PATCH(
       error
     );
 
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,
@@ -464,6 +501,8 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    await requireAuth();
+
     const collection =
       await getMongoCollection();
 
@@ -504,6 +543,22 @@ export async function DELETE(
       "DELETE COLLECTION ERROR:",
       error
     );
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
 
     return NextResponse.json(
       {

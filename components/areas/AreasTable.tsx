@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -40,10 +39,12 @@ export default function AreasTable({
   const [name, setName] = useState("");
   const [description, setDescription] =
     useState("");
+
   const [status, setStatus] =
     useState<"Active" | "Inactive">("Active");
 
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] =
+    useState(false);
 
   const [deletingId, setDeletingId] =
     useState<string | null>(null);
@@ -56,6 +57,8 @@ export default function AreasTable({
   };
 
   const closeEdit = () => {
+    if (saving) return;
+
     setEditingArea(null);
     setName("");
     setDescription("");
@@ -63,7 +66,7 @@ export default function AreasTable({
   };
 
   const handleUpdate = async (
-    event: React.FormEvent
+    event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
@@ -108,17 +111,24 @@ export default function AreasTable({
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || "Failed to update area."
+          data.message ||
+            "Failed to update area."
         );
       }
 
-      closeEdit();
+      setEditingArea(null);
+      setName("");
+      setDescription("");
+      setStatus("Active");
 
       if (onUpdated) {
         await onUpdated();
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Update area error:",
+        error
+      );
 
       alert(
         error instanceof Error
@@ -130,7 +140,9 @@ export default function AreasTable({
     }
   };
 
-  const handleDelete = async (area: Area) => {
+  const handleDelete = async (
+    area: Area
+  ) => {
     const confirmed = window.confirm(
       `Delete ${area.name}?\n\nExisting suppliers will be kept but marked inactive.`
     );
@@ -163,7 +175,8 @@ export default function AreasTable({
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || "Failed to delete area."
+          data.message ||
+            "Failed to delete area."
         );
       }
 
@@ -171,7 +184,10 @@ export default function AreasTable({
         await onUpdated();
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Delete area error:",
+        error
+      );
 
       alert(
         error instanceof Error
@@ -185,7 +201,7 @@ export default function AreasTable({
 
   if (areas.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 px-5 py-14 text-center">
+      <div className="rounded-2xl border border-slate-800 bg-[#07140d] px-5 py-16 text-center">
         <MapPin className="mx-auto h-10 w-10 text-slate-700" />
 
         <h3 className="mt-4 text-lg font-semibold text-slate-300">
@@ -193,8 +209,8 @@ export default function AreasTable({
         </h3>
 
         <p className="mt-2 text-sm text-slate-500">
-          Create your first area to start adding
-          suppliers.
+          Create your first area to start
+          adding suppliers.
         </p>
       </div>
     );
@@ -208,8 +224,10 @@ export default function AreasTable({
         {areas.map((area) => (
           <div
             key={area.areaId}
-            className="group overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60 transition hover:-translate-y-0.5 hover:border-emerald-500/30"
+            className="group overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] transition hover:-translate-y-0.5 hover:border-emerald-500/30 hover:bg-[#091810]"
           >
+            {/* CARD CONTENT */}
+
             <Link
               href={`/areas/${encodeURIComponent(
                 area.areaId
@@ -219,24 +237,24 @@ export default function AreasTable({
               {/* TOP */}
 
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-400">
                     <MapPin className="h-5 w-5" />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-400">
                       {area.areaId}
                     </p>
 
-                    <h3 className="mt-0.5 text-lg font-semibold text-white">
+                    <h3 className="mt-0.5 truncate text-lg font-semibold text-white">
                       {area.name}
                     </h3>
                   </div>
                 </div>
 
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${
                     area.status === "Inactive"
                       ? "bg-red-500/10 text-red-400"
                       : "bg-emerald-500/10 text-emerald-400"
@@ -246,9 +264,17 @@ export default function AreasTable({
                 </span>
               </div>
 
+              {/* DESCRIPTION */}
+
+              {area.description && (
+                <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">
+                  {area.description}
+                </p>
+              )}
+
               {/* SUPPLIER COUNT */}
 
-              <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3">
+              <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3">
                 <div className="flex items-center gap-2.5">
                   <Users className="h-4 w-4 text-slate-500" />
 
@@ -278,8 +304,10 @@ export default function AreasTable({
             <div className="flex border-t border-slate-800">
               <button
                 type="button"
-                onClick={() => openEdit(area)}
-                className="flex flex-1 items-center justify-center gap-2 border-r border-slate-800 py-3 text-xs text-slate-400 transition hover:bg-slate-900 hover:text-emerald-400"
+                onClick={() =>
+                  openEdit(area)
+                }
+                className="flex flex-1 items-center justify-center gap-2 border-r border-slate-800 py-3 text-xs font-medium text-slate-400 transition hover:bg-slate-900 hover:text-emerald-400"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit
@@ -287,19 +315,25 @@ export default function AreasTable({
 
               <button
                 type="button"
-                onClick={() => handleDelete(area)}
+                onClick={() =>
+                  handleDelete(area)
+                }
                 disabled={
                   deletingId === area.areaId
                 }
-                className="flex flex-1 items-center justify-center gap-2 py-3 text-xs text-slate-400 transition hover:bg-slate-900 hover:text-red-400 disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 py-3 text-xs font-medium text-slate-400 transition hover:bg-slate-900 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deletingId === area.areaId ? (
+                {deletingId ===
+                area.areaId ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Trash2 className="h-3.5 w-3.5" />
                 )}
 
-                Delete
+                {deletingId ===
+                area.areaId
+                  ? "Deleting..."
+                  : "Delete"}
               </button>
             </div>
           </div>
@@ -310,14 +344,16 @@ export default function AreasTable({
 
       {editingArea && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-800 bg-[#020617] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+          <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] shadow-2xl">
+            {/* MODAL HEADER */}
+
+            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4 sm:px-6">
               <div>
                 <h2 className="text-lg font-semibold text-white">
                   Edit Area
                 </h2>
 
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500">
                   {editingArea.areaId}
                 </p>
               </div>
@@ -325,78 +361,98 @@ export default function AreasTable({
               <button
                 type="button"
                 onClick={closeEdit}
-                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-900 hover:text-white"
+                disabled={saving}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-900 hover:text-white disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
+            {/* MODAL FORM */}
+
             <form
               onSubmit={handleUpdate}
-              className="space-y-5 p-5"
+              className="overflow-y-auto"
             >
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Area Name
-                </label>
+              <div className="space-y-5 p-5 sm:p-6">
+                {/* AREA NAME */}
 
-                <input
-                  value={name}
-                  onChange={(e) =>
-                    setName(e.target.value)
-                  }
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
-                  placeholder="Area name"
-                />
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Area Name
+                  </label>
+
+                  <input
+                    value={name}
+                    onChange={(e) =>
+                      setName(e.target.value)
+                    }
+                    disabled={saving}
+                    className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-600 disabled:opacity-50"
+                    placeholder="Area name"
+                  />
+                </div>
+
+                {/* DESCRIPTION */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Description
+                  </label>
+
+                  <textarea
+                    value={description}
+                    onChange={(e) =>
+                      setDescription(
+                        e.target.value
+                      )
+                    }
+                    disabled={saving}
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-600 disabled:opacity-50"
+                    placeholder="Area description"
+                  />
+                </div>
+
+                {/* STATUS */}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-300">
+                    Status
+                  </label>
+
+                  <select
+                    value={status}
+                    onChange={(e) =>
+                      setStatus(
+                        e.target
+                          .value as
+                          | "Active"
+                          | "Inactive"
+                      )
+                    }
+                    disabled={saving}
+                    className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-600 disabled:opacity-50"
+                  >
+                    <option value="Active">
+                      Active
+                    </option>
+
+                    <option value="Inactive">
+                      Inactive
+                    </option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Description
-                </label>
+              {/* MODAL FOOTER */}
 
-                <textarea
-                  value={description}
-                  onChange={(e) =>
-                    setDescription(e.target.value)
-                  }
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
-                  placeholder="Area description"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Status
-                </label>
-
-                <select
-                  value={status}
-                  onChange={(e) =>
-                    setStatus(
-                      e.target.value as
-                        | "Active"
-                        | "Inactive"
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
-                >
-                  <option value="Active">
-                    Active
-                  </option>
-
-                  <option value="Inactive">
-                    Inactive
-                  </option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-800 bg-[#061109] p-5 sm:flex-row sm:justify-end sm:px-6">
                 <button
                   type="button"
                   onClick={closeEdit}
-                  className="flex-1 rounded-xl border border-slate-800 px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
+                  disabled={saving}
+                  className="rounded-xl border border-slate-800 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -404,7 +460,7 @@ export default function AreasTable({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -424,4 +480,3 @@ export default function AreasTable({
     </>
   );
 }
-

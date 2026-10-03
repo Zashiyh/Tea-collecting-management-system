@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
+
 import Supplier from "@/models/Supplier";
 import Area from "@/models/Area";
 import TeaCollection from "@/models/TeaCollection";
@@ -18,13 +21,18 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
-    const { supplierId } = await context.params;
+    const { supplierId } =
+      await context.params;
 
-    const supplier = await Supplier.findOne({
-      supplierId,
-    }).lean();
+    const supplier =
+      await Supplier.findOne({
+        supplierId,
+      }).lean();
 
     if (!supplier) {
       return NextResponse.json(
@@ -43,6 +51,25 @@ export async function GET(
       supplier,
     });
   } catch (error) {
+    /*
+     * UNAUTHORIZED
+     */
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     console.error(
       "GET single supplier error:",
       error
@@ -51,7 +78,8 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to fetch supplier",
+        message:
+          "Failed to fetch supplier",
       },
       {
         status: 500,
@@ -68,17 +96,31 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
-    const { supplierId } = await context.params;
+    const { supplierId } =
+      await context.params;
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
-    const name = body.name?.trim();
-    const phone = body.phone?.trim();
-    const areaId = body.areaId?.trim();
-    const village = body.village?.trim();
-    const address = body.address?.trim() || "";
+    const name =
+      body.name?.trim();
+
+    const phone =
+      body.phone?.trim();
+
+    const areaId =
+      body.areaId?.trim();
+
+    const village =
+      body.village?.trim();
+
+    const address =
+      body.address?.trim() || "";
 
     if (
       !name ||
@@ -110,7 +152,8 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message: "Supplier not found",
+          message:
+            "Supplier not found",
         },
         {
           status: 404,
@@ -121,10 +164,11 @@ export async function PATCH(
     /*
      * Validate area
      */
-    const area = await Area.findOne({
-      areaId,
-      status: "Active",
-    }).lean();
+    const area =
+      await Area.findOne({
+        areaId,
+        status: "Active",
+      }).lean();
 
     if (!area) {
       return NextResponse.json(
@@ -166,12 +210,23 @@ export async function PATCH(
     /*
      * Update supplier
      */
-    existingSupplier.name = name;
-    existingSupplier.phone = phone;
-    existingSupplier.areaId = area.areaId;
-    existingSupplier.areaName = area.name;
-    existingSupplier.village = village;
-    existingSupplier.address = address;
+    existingSupplier.name =
+      name;
+
+    existingSupplier.phone =
+      phone;
+
+    existingSupplier.areaId =
+      area.areaId;
+
+    existingSupplier.areaName =
+      area.name;
+
+    existingSupplier.village =
+      village;
+
+    existingSupplier.address =
+      address;
 
     await existingSupplier.save();
 
@@ -197,10 +252,31 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      message: "Supplier updated successfully",
-      supplier: existingSupplier,
+      message:
+        "Supplier updated successfully",
+      supplier:
+        existingSupplier,
     });
   } catch (error) {
+    /*
+     * UNAUTHORIZED
+     */
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     console.error(
       "PATCH supplier error:",
       error
@@ -209,7 +285,8 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to update supplier",
+        message:
+          "Failed to update supplier",
       },
       {
         status: 500,
@@ -226,9 +303,13 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
-    const { supplierId } = await context.params;
+    const { supplierId } =
+      await context.params;
 
     const supplier =
       await Supplier.findOne({
@@ -239,7 +320,8 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          message: "Supplier not found",
+          message:
+            "Supplier not found",
         },
         {
           status: 404,
@@ -262,7 +344,8 @@ export async function DELETE(
      * Instead mark inactive.
      */
     if (collectionCount > 0) {
-      supplier.status = "Inactive";
+      supplier.status =
+        "Inactive";
 
       await supplier.save();
 
@@ -287,9 +370,29 @@ export async function DELETE(
       success: true,
       deleted: true,
       deactivated: false,
-      message: "Supplier deleted successfully",
+      message:
+        "Supplier deleted successfully",
     });
   } catch (error) {
+    /*
+     * UNAUTHORIZED
+     */
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     console.error(
       "DELETE supplier error:",
       error
@@ -298,7 +401,8 @@ export async function DELETE(
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to delete supplier",
+        message:
+          "Failed to delete supplier",
       },
       {
         status: 500,

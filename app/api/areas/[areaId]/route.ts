@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
+
 import Area from "@/models/Area";
 import Supplier from "@/models/Supplier";
 
@@ -18,6 +21,9 @@ export async function GET(
   context: RouteContext
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const { areaId } =
@@ -32,8 +38,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Area not found",
+          message: "Area not found",
         },
         { status: 404 }
       );
@@ -43,12 +48,31 @@ export async function GET(
       success: true,
       area: {
         ...area,
-        _id: String(
-          area._id
-        ),
+        _id: String(area._id),
       },
     });
   } catch (error) {
+    /* =====================================================
+       UNAUTHORIZED
+    ===================================================== */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    /* =====================================================
+       SERVER ERROR
+    ===================================================== */
+
     console.error(
       "GET AREA ERROR:",
       error
@@ -76,6 +100,9 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const { areaId } =
@@ -94,14 +121,13 @@ export async function PATCH(
       ).trim();
 
     const status =
-      body.status ===
-      "Inactive"
+      body.status === "Inactive"
         ? "Inactive"
         : "Active";
 
-    /* -------------------------
-       Validation
-    ------------------------- */
+    /* =====================================================
+       VALIDATION
+    ===================================================== */
 
     if (!name) {
       return NextResponse.json(
@@ -114,9 +140,9 @@ export async function PATCH(
       );
     }
 
-    /* -------------------------
-       Find area
-    ------------------------- */
+    /* =====================================================
+       FIND AREA
+    ===================================================== */
 
     const area =
       await Area.findOne({
@@ -127,16 +153,15 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Area not found",
+          message: "Area not found",
         },
         { status: 404 }
       );
     }
 
-    /* -------------------------
-       Check duplicate name
-    ------------------------- */
+    /* =====================================================
+       CHECK DUPLICATE NAME
+    ===================================================== */
 
     const duplicate =
       await Area.findOne({
@@ -157,9 +182,9 @@ export async function PATCH(
       );
     }
 
-    /* -------------------------
-       Update area
-    ------------------------- */
+    /* =====================================================
+       UPDATE AREA
+    ===================================================== */
 
     area.name = name;
 
@@ -170,9 +195,9 @@ export async function PATCH(
 
     await area.save();
 
-    /* -------------------------
-       Update supplier area name
-    ------------------------- */
+    /* =====================================================
+       UPDATE SUPPLIER AREA NAME
+    ===================================================== */
 
     await Supplier.updateMany(
       {
@@ -198,6 +223,27 @@ export async function PATCH(
       },
     });
   } catch (error) {
+    /* =====================================================
+       UNAUTHORIZED
+    ===================================================== */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    /* =====================================================
+       SERVER ERROR
+    ===================================================== */
+
     console.error(
       "PATCH AREA ERROR:",
       error
@@ -225,6 +271,9 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const { areaId } =
@@ -235,9 +284,9 @@ export async function DELETE(
       areaId
     );
 
-    /* -------------------------
-       Find area
-    ------------------------- */
+    /* =====================================================
+       FIND AREA
+    ===================================================== */
 
     const area =
       await Area.findOne({
@@ -248,16 +297,15 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Area not found",
+          message: "Area not found",
         },
         { status: 404 }
       );
     }
 
-    /* -------------------------
-       Find suppliers
-    ------------------------- */
+    /* =====================================================
+       FIND SUPPLIERS
+    ===================================================== */
 
     const supplierCount =
       await Supplier.countDocuments({
@@ -279,6 +327,7 @@ export async function DELETE(
      *
      * Their previous records remain safe.
      */
+
     if (supplierCount > 0) {
       await Supplier.updateMany(
         {
@@ -296,9 +345,9 @@ export async function DELETE(
       );
     }
 
-    /* -------------------------
-       Delete area
-    ------------------------- */
+    /* =====================================================
+       DELETE AREA
+    ===================================================== */
 
     await Area.deleteOne({
       areaId,
@@ -327,6 +376,27 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
+    /* =====================================================
+       UNAUTHORIZED
+    ===================================================== */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    /* =====================================================
+       SERVER ERROR
+    ===================================================== */
+
     console.error(
       "DELETE AREA ERROR:",
       error

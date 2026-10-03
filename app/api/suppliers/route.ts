@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
+import { requireAuth } from "@/lib/auth";
 
 import Supplier from "@/models/Supplier";
 import SupplierTeaCollection from "@/models/SupplierTeaCollection";
@@ -12,6 +13,9 @@ import Area from "@/models/Area";
 
 export async function GET(request: Request) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const { searchParams } =
@@ -127,6 +131,30 @@ export async function GET(request: Request) {
         formattedSuppliers,
     });
   } catch (error) {
+    /* =================================================
+       UNAUTHORIZED
+    ================================================= */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /* =================================================
+       SERVER ERROR
+    ================================================= */
+
     console.error(
       "GET SUPPLIERS ERROR:",
       error
@@ -156,6 +184,9 @@ export async function POST(
   request: Request
 ) {
   try {
+    // 🔒 Login required
+    await requireAuth();
+
     await connectDB();
 
     const body =
@@ -334,6 +365,30 @@ export async function POST(
       }
     );
   } catch (error) {
+    /* =================================================
+       UNAUTHORIZED
+    ================================================= */
+
+    if (
+      error instanceof Error &&
+      error.message === "UNAUTHORIZED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Authentication required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    /* =================================================
+       SERVER ERROR
+    ================================================= */
+
     console.error(
       "POST SUPPLIER ERROR:",
       error
