@@ -20,11 +20,9 @@ import Header from "@/components/dashboard/Header";
 interface AreaCollection {
   areaId: string;
   areaName: string;
-
   totalTeaWeightKg: number;
   totalFactoryWeightKg: number;
   totalDifferenceKg: number;
-
   collectionCount: number;
   latestCollectionId?: string;
 }
@@ -40,16 +38,18 @@ interface DashboardResponse {
   summary: {
     totalAreas: number;
     collectedAreas: number;
-
     totalTeaWeightKg: number;
     totalFactoryWeightKg: number;
     totalDifferenceKg: number;
-
     totalCollections: number;
   };
 
   areas: AreaCollection[];
 }
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function formatNumber(value: number) {
   return Number(value || 0).toLocaleString("en-LK", {
@@ -99,7 +99,7 @@ function getDifferenceStatus(difference: number) {
     return {
       label: "Matched",
       className:
-        "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+        "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
     };
   }
 
@@ -107,16 +107,20 @@ function getDifferenceStatus(difference: number) {
     return {
       label: "Factory More",
       className:
-        "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+        "border-cyan-500/20 bg-cyan-500/10 text-cyan-400",
     };
   }
 
   return {
     label: "Factory Less",
     className:
-      "bg-red-500/10 text-red-400 border-red-500/20",
+      "border-red-500/20 bg-red-500/10 text-red-400",
   };
 }
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
 
 export default function DashboardPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -131,9 +135,9 @@ export default function DashboardPage() {
 
   const [error, setError] = useState("");
 
-  /* =====================================================
+  /* =======================================================
      FETCH DASHBOARD
-  ===================================================== */
+  ======================================================= */
 
   async function fetchDashboard(
     date: string = selectedDate
@@ -180,9 +184,9 @@ export default function DashboardPage() {
     }
   }
 
-  /* =====================================================
+  /* =======================================================
      INITIAL LOAD
-  ===================================================== */
+  ======================================================= */
 
   useEffect(() => {
     fetchDashboard(selectedDate);
@@ -192,18 +196,17 @@ export default function DashboardPage() {
 
   const areas = data?.areas || [];
 
-  /* =====================================================
+  /* =======================================================
      MAX WEIGHT
-
-     Field + Factory bars use SAME SCALE
-  ===================================================== */
+     SAME SCALE FOR FIELD + FACTORY
+  ======================================================= */
 
   function getMaxWeight() {
-    if (!data || data.areas.length === 0) {
+    if (areas.length === 0) {
       return 1;
     }
 
-    const values = data.areas.flatMap((area) => [
+    const values = areas.flatMap((area) => [
       Number(area.totalTeaWeightKg || 0),
       Number(area.totalFactoryWeightKg || 0),
     ]);
@@ -213,60 +216,71 @@ export default function DashboardPage() {
 
   const maxWeight = getMaxWeight();
 
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
   return (
     <div className="min-h-screen bg-[#020a06] text-white">
-      {/* =====================================================
+
+      {/* ===================================================
           SIDEBAR
-      ===================================================== */}
+      =================================================== */}
 
       <Sidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
 
-      {/* =====================================================
-          MAIN CONTENT
-      ===================================================== */}
+      {/* ===================================================
+          MAIN
+      =================================================== */}
 
       <div className="lg:pl-72">
+
         <Header
           onMenuClick={() => setMobileOpen(true)}
         />
 
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main className="p-3 sm:p-5 lg:p-8">
+
           <div className="mx-auto max-w-[1600px]">
 
             {/* =================================================
-                HEADER
+                PAGE HEADER
             ================================================= */}
 
-            <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+            <div className="mb-5 flex flex-col gap-4 sm:mb-6 lg:mb-8 lg:flex-row lg:items-end lg:justify-between">
+
+              {/* TITLE */}
+
               <div>
-                <p className="mb-2 text-sm font-medium text-emerald-400">
+                <p className="mb-1 text-[10px] font-semibold tracking-widest text-emerald-400 sm:text-xs">
                   COOROONDOOWATTE TEA
                 </p>
 
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-3xl">
                   Factory Overview
                 </h1>
 
-                <p className="mt-2 text-sm text-slate-500">
-                  View cumulative tea weight and factory weight by
-                  area.
+                <p className="mt-1 text-[11px] text-slate-500 sm:text-sm">
+                  Cumulative tea collection overview by area.
                 </p>
               </div>
 
               {/* =================================================
-                  DATE FILTER
+                  DATE + REFRESH
               ================================================= */}
 
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                {/* DATE SELECTOR */}
+              <div className="flex w-full items-center gap-2 sm:w-auto">
 
-                <div className="relative w-full sm:w-auto">
+                {/* DATE */}
+
+                <div className="relative min-w-0 flex-1 sm:flex-none">
+
                   <CalendarDays
-                    size={18}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white"
+                    size={16}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                   />
 
                   <input
@@ -275,7 +289,7 @@ export default function DashboardPage() {
                     onChange={(event) =>
                       setSelectedDate(event.target.value)
                     }
-                    className="h-11 w-full rounded-xl border border-slate-800 bg-slate-900 pl-11 pr-4 text-sm text-white outline-none transition focus:border-emerald-500 sm:w-auto"
+                    className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none transition focus:border-emerald-500 sm:h-11 sm:w-auto sm:pl-10 sm:pr-4 sm:text-sm"
                     style={{
                       colorScheme: "dark",
                     }}
@@ -290,7 +304,7 @@ export default function DashboardPage() {
                     fetchDashboard(selectedDate)
                   }
                   disabled={loading}
-                  className="flex h-9 w-fit self-end items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50 sm:h-11 sm:self-auto sm:px-4 sm:text-sm"
+                  className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:gap-2 sm:px-4 sm:text-sm"
                 >
                   <RefreshCw
                     size={14}
@@ -299,31 +313,35 @@ export default function DashboardPage() {
                     }
                   />
 
-                  Refresh
+                  <span>Refresh</span>
                 </button>
               </div>
             </div>
 
             {/* =================================================
-                SELECTED DATE / PERIOD
+                PERIOD
             ================================================= */}
 
-            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
+            <div className="mb-5 flex flex-col gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+
+              <div className="flex min-w-0 items-center gap-2.5">
+
                 <CalendarDays
-                  size={18}
-                  className="text-emerald-400"
+                  size={16}
+                  className="shrink-0 text-emerald-400"
                 />
 
-                <div>
-                  <p className="text-xs text-slate-500">
+                <div className="min-w-0">
+
+                  <p className="text-[10px] text-slate-600 sm:text-xs">
                     Collection Period
                   </p>
 
-                  <p className="mt-0.5 text-sm font-semibold text-white">
+                  <p className="truncate text-xs font-semibold text-white sm:text-sm">
+
                     01 October 2026
 
-                    <span className="mx-2 text-slate-600">
+                    <span className="mx-1.5 text-slate-600">
                       →
                     </span>
 
@@ -334,7 +352,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] text-slate-600 sm:text-xs">
                 Cumulative total up to selected date
               </p>
             </div>
@@ -344,15 +362,18 @@ export default function DashboardPage() {
             ================================================= */}
 
             {error && (
-              <div className="mb-6 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 sm:flex-row sm:items-center sm:justify-between">
-                <span>{error}</span>
+              <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400 sm:flex-row sm:items-center sm:justify-between sm:p-4 sm:text-sm">
+
+                <span>
+                  {error}
+                </span>
 
                 <button
                   type="button"
                   onClick={() =>
                     fetchDashboard(selectedDate)
                   }
-                  className="rounded-lg border border-red-500/20 px-4 py-2 text-red-300 hover:bg-red-500/10"
+                  className="w-fit rounded-lg border border-red-500/20 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10"
                 >
                   Try Again
                 </button>
@@ -364,14 +385,16 @@ export default function DashboardPage() {
             ================================================= */}
 
             {loading && !data ? (
-              <div className="flex min-h-[500px] items-center justify-center">
+              <div className="flex min-h-[400px] items-center justify-center">
+
                 <div className="text-center">
+
                   <Loader2
-                    size={36}
+                    size={32}
                     className="mx-auto animate-spin text-emerald-500"
                   />
 
-                  <p className="mt-4 text-sm text-slate-500">
+                  <p className="mt-3 text-xs text-slate-500">
                     Loading factory data...
                   </p>
                 </div>
@@ -379,86 +402,99 @@ export default function DashboardPage() {
             ) : (
               <>
                 {/* =================================================
-                    MAIN TOTALS
+                    SUMMARY CARDS
                 ================================================= */}
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
 
                   {/* FIELD WEIGHT */}
 
-                  <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-emerald-800 hover:shadow-lg hover:shadow-emerald-950/20 sm:rounded-2xl sm:p-4">
+
+                    <div className="flex items-center justify-between gap-2">
+
+                      <div className="min-w-0">
+
+                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
                           Total Field Weight
                         </p>
 
-                        <p className="mt-3 text-2xl font-bold text-white sm:text-3xl">
+                        <p className="mt-1 text-base font-bold leading-tight text-white sm:text-xl">
                           {formatNumber(
                             summary?.totalTeaWeightKg || 0
                           )}{" "}
-                          <span className="text-sm font-medium text-slate-500">
+                          <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
                             KG
                           </span>
                         </p>
-
-                        <p className="mt-2 text-xs text-slate-600">
-                          Cumulative field collection
-                        </p>
                       </div>
 
-                      <div className="rounded-xl bg-emerald-500/10 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 sm:h-10 sm:w-10">
+
                         <Leaf
-                          size={22}
-                          className="text-emerald-400"
+                          size={16}
+                          className="sm:h-[20px] sm:w-[20px]"
                         />
+
                       </div>
                     </div>
+
+                    <p className="mt-1.5 truncate text-[8px] text-slate-600 sm:mt-2 sm:text-[10px]">
+                      Cumulative field collection
+                    </p>
                   </div>
 
                   {/* FACTORY WEIGHT */}
 
-                  <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-blue-800 hover:shadow-lg hover:shadow-blue-950/20 sm:rounded-2xl sm:p-4">
+
+                    <div className="flex items-center justify-between gap-2">
+
+                      <div className="min-w-0">
+
+                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
                           Total Factory Weight
                         </p>
 
-                        <p className="mt-3 text-2xl font-bold text-white sm:text-3xl">
+                        <p className="mt-1 text-base font-bold leading-tight text-white sm:text-xl">
                           {formatNumber(
                             summary?.totalFactoryWeightKg || 0
                           )}{" "}
-                          <span className="text-sm font-medium text-slate-500">
+                          <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
                             KG
                           </span>
                         </p>
-
-                        <p className="mt-2 text-xs text-slate-600">
-                          Cumulative factory scale
-                        </p>
                       </div>
 
-                      <div className="rounded-xl bg-blue-500/10 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 sm:h-10 sm:w-10">
+
                         <Factory
-                          size={22}
-                          className="text-blue-400"
+                          size={16}
+                          className="sm:h-[20px] sm:w-[20px]"
                         />
+
                       </div>
                     </div>
+
+                    <p className="mt-1.5 truncate text-[8px] text-slate-600 sm:mt-2 sm:text-[10px]">
+                      Cumulative factory scale
+                    </p>
                   </div>
 
                   {/* DIFFERENCE */}
 
-                  <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-amber-800 hover:shadow-lg hover:shadow-amber-950/20 sm:rounded-2xl sm:p-4">
+
+                    <div className="flex items-center justify-between gap-2">
+
+                      <div className="min-w-0">
+
+                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
                           Weight Difference
                         </p>
 
                         <p
-                          className={`mt-3 text-2xl font-bold sm:text-3xl ${
+                          className={`mt-1 text-base font-bold leading-tight sm:text-xl ${
                             (summary?.totalDifferenceKg || 0) > 0
                               ? "text-cyan-400"
                               : (summary?.totalDifferenceKg || 0) < 0
@@ -473,55 +509,63 @@ export default function DashboardPage() {
                           {formatNumber(
                             summary?.totalDifferenceKg || 0
                           )}{" "}
-                          <span className="text-sm font-medium text-slate-500">
+                          <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
                             KG
                           </span>
                         </p>
-
-                        <p className="mt-2 text-xs text-slate-600">
-                          Factory weight − field weight
-                        </p>
                       </div>
 
-                      <div className="rounded-xl bg-amber-500/10 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 sm:h-10 sm:w-10">
+
                         <Scale
-                          size={22}
-                          className="text-amber-400"
+                          size={16}
+                          className="sm:h-[20px] sm:w-[20px]"
                         />
+
                       </div>
                     </div>
+
+                    <p className="mt-1.5 truncate text-[8px] text-slate-600 sm:mt-2 sm:text-[10px]">
+                      Factory weight − field weight
+                    </p>
                   </div>
 
                   {/* AREAS */}
 
-                  <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-purple-800 hover:shadow-lg hover:shadow-purple-950/20 sm:rounded-2xl sm:p-4">
+
+                    <div className="flex items-center justify-between gap-2">
+
+                      <div className="min-w-0">
+
+                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
                           Areas
                         </p>
 
-                        <p className="mt-3 text-2xl font-bold text-white sm:text-3xl">
+                        <p className="mt-1 text-base font-bold leading-tight text-white sm:text-xl">
+
                           {summary?.collectedAreas || 0}
 
-                          <span className="text-lg text-slate-600">
+                          <span className="text-xs text-slate-600 sm:text-sm">
                             {" "}
                             / {summary?.totalAreas || 0}
                           </span>
                         </p>
-
-                        <p className="mt-2 text-xs text-slate-600">
-                          Areas collected
-                        </p>
                       </div>
 
-                      <div className="rounded-xl bg-purple-500/10 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 sm:h-10 sm:w-10">
+
                         <Users
-                          size={22}
-                          className="text-purple-400"
+                          size={16}
+                          className="sm:h-[20px] sm:w-[20px]"
                         />
+
                       </div>
                     </div>
+
+                    <p className="mt-1.5 truncate text-[8px] text-slate-600 sm:mt-2 sm:text-[10px]">
+                      Areas collected
+                    </p>
                   </div>
                 </div>
 
@@ -529,16 +573,21 @@ export default function DashboardPage() {
                     AREA COLLECTIONS
                 ================================================= */}
 
-                <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d]">
+                <div className="mt-5 overflow-hidden rounded-xl border border-slate-800 bg-[#07140d] sm:mt-6 sm:rounded-2xl">
 
-                  <div className="border-b border-slate-800 p-5">
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                      <div>
-                        <h2 className="font-semibold text-white">
+                  {/* HEADER */}
+
+                  <div className="border-b border-slate-800 p-3 sm:p-5">
+
+                    <div className="flex items-center justify-between gap-3">
+
+                      <div className="min-w-0">
+
+                        <h2 className="text-sm font-semibold text-white sm:text-base">
                           All Area Collections
                         </h2>
 
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 truncate text-[9px] text-slate-600 sm:text-xs">
                           Cumulative from 01/10/2026 to{" "}
                           {formatDateForDisplay(
                             data?.toDate || selectedDate
@@ -546,36 +595,42 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <div className="flex shrink-0 items-center gap-1.5 text-[9px] text-slate-600 sm:text-xs">
+
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 sm:h-2 sm:w-2" />
 
                         {areas.length} areas
                       </div>
                     </div>
                   </div>
 
+                  {/* NO DATA */}
+
                   {areas.length === 0 ? (
-                    <div className="flex min-h-[300px] items-center justify-center px-5">
+                    <div className="flex min-h-[250px] items-center justify-center px-5">
+
                       <div className="text-center">
+
                         <Leaf
-                          size={40}
+                          size={34}
                           className="mx-auto text-slate-700"
                         />
 
-                        <p className="mt-4 text-sm text-slate-500">
+                        <p className="mt-3 text-xs text-slate-500 sm:text-sm">
                           No collection recorded for this period.
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-700">
-                          Select another date to view previous
-                          records.
+                        <p className="mt-1 text-[10px] text-slate-700 sm:text-xs">
+                          Select another date to view previous records.
                         </p>
+
                       </div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-800/70">
 
                       {areas.map((area) => {
+
                         const status =
                           getDifferenceStatus(
                             area.totalDifferenceKg
@@ -609,52 +664,59 @@ export default function DashboardPage() {
                             )}?from=2026-10-01&to=${encodeURIComponent(
                               data?.toDate || selectedDate
                             )}`}
-                            className="group block p-5 transition hover:bg-slate-900/30"
+                            className="group block p-3 transition hover:bg-slate-900/30 sm:p-5"
                           >
 
-                            {/* AREA HEADER */}
+                            {/* AREA TITLE */}
 
-                            <div className="mb-5 flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-3">
+                            <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
 
-                                <div className="flex h-10 min-w-10 items-center justify-center rounded-xl bg-emerald-500/10 px-3 text-sm font-bold text-emerald-400">
+                              <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+
+                                <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-400 sm:h-10 sm:min-w-10 sm:rounded-xl sm:px-3 sm:text-sm">
                                   {area.areaName}
                                 </div>
 
-                                <div>
-                                  <p className="font-semibold text-white">
+                                <div className="min-w-0">
+
+                                  <p className="truncate text-xs font-semibold text-white sm:text-sm">
                                     {area.areaName}
                                   </p>
 
-                                  <p className="text-xs text-slate-600">
-                                    {area.collectionCount}{" "}
-                                    collection
+                                  <p className="text-[9px] text-slate-600 sm:text-xs">
+                                    {area.collectionCount} collection
                                     {area.collectionCount !== 1
                                       ? "s"
                                       : ""}
                                   </p>
+
                                 </div>
                               </div>
 
                               <ArrowRight
-                                size={18}
-                                className="text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400"
+                                size={16}
+                                className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400"
                               />
                             </div>
 
-                            {/* FIELD WEIGHT BAR */}
+                            {/* =================================================
+                                FIELD WEIGHT BAR
+                            ================================================= */}
 
-                            <div className="mb-5">
-                              <div className="mb-2 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                            <div className="mb-4 sm:mb-5">
 
-                                  <span className="text-xs font-medium text-slate-400">
+                              <div className="mb-1.5 flex items-center justify-between">
+
+                                <div className="flex items-center gap-1.5">
+
+                                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+
+                                  <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
                                     Field Weight
                                   </span>
                                 </div>
 
-                                <span className="text-xs font-semibold text-white">
+                                <span className="text-[9px] font-semibold text-white sm:text-xs">
                                   {formatNumber(
                                     area.totalTeaWeightKg
                                   )}{" "}
@@ -662,39 +724,48 @@ export default function DashboardPage() {
                                 </span>
                               </div>
 
-                              <div className="relative h-10 overflow-hidden rounded-xl bg-slate-900">
+                              <div className="relative h-8 overflow-hidden rounded-lg bg-slate-900 sm:h-10 sm:rounded-xl">
+
                                 <div
-                                  className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/80 transition-all duration-500 group-hover:bg-emerald-400"
+                                  className="absolute inset-y-0 left-0 rounded-lg bg-emerald-500/80 transition-all duration-500 group-hover:bg-emerald-400 sm:rounded-xl"
                                   style={{
                                     width: `${fieldWidth}%`,
                                   }}
                                 />
 
-                                <div className="relative z-10 flex h-full items-center px-3">
-                                  <span className="text-xs font-semibold text-white">
+                                <div className="relative z-10 flex h-full items-center px-2.5 sm:px-3">
+
+                                  <span className="truncate text-[9px] font-semibold text-white sm:text-xs">
+
                                     {area.totalTeaWeightKg > 0
                                       ? `${formatNumber(
                                           area.totalTeaWeightKg
                                         )} KG`
                                       : "No field collection"}
+
                                   </span>
                                 </div>
                               </div>
                             </div>
 
-                            {/* FACTORY WEIGHT BAR */}
+                            {/* =================================================
+                                FACTORY WEIGHT BAR
+                            ================================================= */}
 
-                            <div className="mb-5">
-                              <div className="mb-2 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+                            <div className="mb-4 sm:mb-5">
 
-                                  <span className="text-xs font-medium text-slate-400">
+                              <div className="mb-1.5 flex items-center justify-between">
+
+                                <div className="flex items-center gap-1.5">
+
+                                  <span className="h-2 w-2 rounded-full bg-blue-400" />
+
+                                  <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
                                     Factory Weight
                                   </span>
                                 </div>
 
-                                <span className="text-xs font-semibold text-blue-400">
+                                <span className="text-[9px] font-semibold text-blue-400 sm:text-xs">
                                   {formatNumber(
                                     area.totalFactoryWeightKg
                                   )}{" "}
@@ -702,38 +773,45 @@ export default function DashboardPage() {
                                 </span>
                               </div>
 
-                              <div className="relative h-10 overflow-hidden rounded-xl bg-slate-900">
+                              <div className="relative h-8 overflow-hidden rounded-lg bg-slate-900 sm:h-10 sm:rounded-xl">
+
                                 <div
-                                  className="absolute inset-y-0 left-0 rounded-xl bg-blue-500/70 transition-all duration-500 group-hover:bg-blue-400/80"
+                                  className="absolute inset-y-0 left-0 rounded-lg bg-blue-500/70 transition-all duration-500 group-hover:bg-blue-400/80 sm:rounded-xl"
                                   style={{
                                     width: `${factoryWidth}%`,
                                   }}
                                 />
 
-                                <div className="relative z-10 flex h-full items-center px-3">
-                                  <span className="text-xs font-semibold text-white">
+                                <div className="relative z-10 flex h-full items-center px-2.5 sm:px-3">
+
+                                  <span className="truncate text-[9px] font-semibold text-white sm:text-xs">
+
                                     {area.totalFactoryWeightKg > 0
                                       ? `${formatNumber(
                                           area.totalFactoryWeightKg
                                         )} KG`
                                       : "No factory weight"}
+
                                   </span>
                                 </div>
                               </div>
                             </div>
 
-                            {/* VALUES */}
+                            {/* =================================================
+                                AREA DETAILS
+                            ================================================= */}
 
-                            <div className="grid grid-cols-1 gap-3 border-t border-slate-800 pt-4 sm:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-slate-800 pt-3 sm:grid-cols-4 sm:gap-3 sm:pt-4">
 
                               {/* FIELD */}
 
-                              <div className="flex items-center justify-between sm:block">
-                                <span className="text-xs text-slate-500">
+                              <div className="min-w-0">
+
+                                <span className="block text-[8px] text-slate-600 sm:text-xs">
                                   Field Total
                                 </span>
 
-                                <span className="font-semibold text-white sm:mt-1 sm:block">
+                                <span className="mt-0.5 block truncate text-[10px] font-semibold text-white sm:text-xs">
                                   {formatNumber(
                                     area.totalTeaWeightKg
                                   )}{" "}
@@ -743,12 +821,13 @@ export default function DashboardPage() {
 
                               {/* FACTORY */}
 
-                              <div className="flex items-center justify-between sm:block">
-                                <span className="text-xs text-slate-500">
+                              <div className="min-w-0">
+
+                                <span className="block text-[8px] text-slate-600 sm:text-xs">
                                   Factory Total
                                 </span>
 
-                                <span className="font-semibold text-blue-400 sm:mt-1 sm:block">
+                                <span className="mt-0.5 block truncate text-[10px] font-semibold text-blue-400 sm:text-xs">
                                   {formatNumber(
                                     area.totalFactoryWeightKg
                                   )}{" "}
@@ -758,13 +837,14 @@ export default function DashboardPage() {
 
                               {/* DIFFERENCE */}
 
-                              <div className="flex items-center justify-between sm:block">
-                                <span className="text-xs text-slate-500">
+                              <div className="min-w-0">
+
+                                <span className="block text-[8px] text-slate-600 sm:text-xs">
                                   Difference
                                 </span>
 
                                 <span
-                                  className={`font-semibold sm:mt-1 sm:block ${
+                                  className={`mt-0.5 block truncate text-[10px] font-semibold sm:text-xs ${
                                     area.totalDifferenceKg > 0
                                       ? "text-cyan-400"
                                       : area.totalDifferenceKg < 0
@@ -785,22 +865,23 @@ export default function DashboardPage() {
 
                               {/* STATUS */}
 
-                              <div className="flex items-center justify-between sm:block">
-                                <span className="text-xs text-slate-500">
+                              <div className="flex min-w-0 items-end justify-between sm:block">
+
+                                <span className="hidden text-[8px] text-slate-600 sm:block sm:text-xs">
                                   Status
                                 </span>
 
                                 <span
-                                  className={`mt-1 inline-flex rounded-lg border px-3 py-1 text-xs font-medium ${status.className}`}
+                                  className={`inline-flex rounded-md border px-2 py-1 text-[8px] font-medium sm:mt-1 sm:text-[10px] ${status.className}`}
                                 >
                                   {status.label}
                                 </span>
                               </div>
+
                             </div>
                           </Link>
                         );
                       })}
-
                     </div>
                   )}
                 </div>
@@ -809,47 +890,54 @@ export default function DashboardPage() {
                     TOTAL SUMMARY
                 ================================================= */}
 
-                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-4">
 
                   {/* FIELD */}
 
-                  <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-5">
-                    <p className="text-xs uppercase tracking-wider text-emerald-500/70">
+                  <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3 sm:rounded-2xl sm:p-5">
+
+                    <p className="text-[9px] uppercase tracking-wider text-emerald-500/70 sm:text-xs">
                       Total Field Weight
                     </p>
 
-                    <p className="mt-2 text-2xl font-bold text-emerald-400">
+                    <p className="mt-1 text-lg font-bold text-emerald-400 sm:text-2xl">
                       {formatNumber(
                         summary?.totalTeaWeightKg || 0
                       )}{" "}
-                      KG
+                      <span className="text-[10px] sm:text-sm">
+                        KG
+                      </span>
                     </p>
                   </div>
 
                   {/* FACTORY */}
 
-                  <div className="rounded-2xl border border-blue-500/10 bg-blue-500/5 p-5">
-                    <p className="text-xs uppercase tracking-wider text-blue-400/70">
+                  <div className="rounded-xl border border-blue-500/10 bg-blue-500/5 p-3 sm:rounded-2xl sm:p-5">
+
+                    <p className="text-[9px] uppercase tracking-wider text-blue-400/70 sm:text-xs">
                       Factory Weight Total
                     </p>
 
-                    <p className="mt-2 text-2xl font-bold text-blue-400">
+                    <p className="mt-1 text-lg font-bold text-blue-400 sm:text-2xl">
                       {formatNumber(
                         summary?.totalFactoryWeightKg || 0
                       )}{" "}
-                      KG
+                      <span className="text-[10px] sm:text-sm">
+                        KG
+                      </span>
                     </p>
                   </div>
 
                   {/* DIFFERENCE */}
 
-                  <div className="rounded-2xl border border-amber-500/10 bg-amber-500/5 p-5">
-                    <p className="text-xs uppercase tracking-wider text-amber-400/70">
+                  <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3 sm:rounded-2xl sm:p-5">
+
+                    <p className="text-[9px] uppercase tracking-wider text-amber-400/70 sm:text-xs">
                       Total Difference
                     </p>
 
                     <p
-                      className={`mt-2 text-2xl font-bold ${
+                      className={`mt-1 text-lg font-bold sm:text-2xl ${
                         (summary?.totalDifferenceKg || 0) > 0
                           ? "text-cyan-400"
                           : (summary?.totalDifferenceKg || 0) < 0
@@ -864,7 +952,9 @@ export default function DashboardPage() {
                       {formatNumber(
                         summary?.totalDifferenceKg || 0
                       )}{" "}
-                      KG
+                      <span className="text-[10px] sm:text-sm">
+                        KG
+                      </span>
                     </p>
                   </div>
                 </div>
