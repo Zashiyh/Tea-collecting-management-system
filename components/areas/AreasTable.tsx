@@ -1,10 +1,9 @@
+
 "use client";
 
 import {
   MapPin,
   Users,
-  Scale,
-  Wallet,
   ArrowRight,
   Pencil,
   Trash2,
@@ -13,7 +12,8 @@ import {
   Loader2,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 
 interface Area {
   _id?: string;
@@ -22,10 +22,6 @@ interface Area {
   description?: string;
   status?: "Active" | "Inactive";
   supplierCount?: number;
-  todayKg?: number;
-  todayValue?: number;
-  totalKg?: number;
-  totalValue?: number;
 }
 
 interface AreasTableProps {
@@ -36,265 +32,138 @@ interface AreasTableProps {
 
 export default function AreasTable({
   areas,
-  onView,
   onUpdated,
 }: AreasTableProps) {
   const [editingArea, setEditingArea] =
     useState<Area | null>(null);
 
-  const [deletingArea, setDeletingArea] =
-    useState<string | null>(null);
-
-  const [isSaving, setIsSaving] =
-    useState(false);
-
-  const [isDeleting, setIsDeleting] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [name, setName] =
-    useState("");
-
+  const [name, setName] = useState("");
   const [description, setDescription] =
     useState("");
-
   const [status, setStatus] =
-    useState<"Active" | "Inactive">(
-      "Active"
-    );
+    useState<"Active" | "Inactive">("Active");
 
-  function formatNumber(value = 0) {
-    return Number(value).toLocaleString(
-      "en-US",
-      {
-        maximumFractionDigits: 2,
-      }
-    );
-  }
+  const [saving, setSaving] = useState(false);
 
-  function formatMoney(value = 0) {
-    return `Rs. ${Number(value).toLocaleString(
-      "en-US",
-      {
-        maximumFractionDigits: 2,
-      }
-    )}`;
-  }
+  const [deletingId, setDeletingId] =
+    useState<string | null>(null);
 
-  /* =========================================
-     OPEN EDIT
-  ========================================= */
-
-  function handleEdit(area: Area) {
+  const openEdit = (area: Area) => {
     setEditingArea(area);
+    setName(area.name);
+    setDescription(area.description || "");
+    setStatus(area.status || "Active");
+  };
 
-    setName(area.name || "");
-
-    setDescription(
-      area.description || ""
-    );
-
-    setStatus(
-      area.status === "Inactive"
-        ? "Inactive"
-        : "Active"
-    );
-
-    setError("");
-  }
-
-  /* =========================================
-     CLOSE EDIT
-  ========================================= */
-
-  function handleCloseEdit() {
-    if (isSaving) {
-      return;
-    }
-
+  const closeEdit = () => {
     setEditingArea(null);
-
     setName("");
-
     setDescription("");
-
     setStatus("Active");
+  };
 
-    setError("");
-  }
-
-  /* =========================================
-     SAVE EDIT
-  ========================================= */
-
-  async function handleSaveEdit(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
+  const handleUpdate = async (
+    event: React.FormEvent
+  ) => {
     event.preventDefault();
 
-    if (!editingArea) {
-      return;
-    }
+    if (!editingArea) return;
 
-    const trimmedName =
-      name.trim();
-
-    if (!trimmedName) {
-      setError(
-        "Area name is required."
-      );
-
+    if (!name.trim()) {
+      alert("Area name is required.");
       return;
     }
 
     try {
-      setIsSaving(true);
-      setError("");
+      setSaving(true);
 
-      const response =
-        await fetch(
-          `/api/areas/${encodeURIComponent(
-            editingArea.areaId
-          )}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              name: trimmedName,
-              description:
-                description.trim(),
-              status,
-            }),
-          }
-        );
-
-      const responseText =
-        await response.text();
-
-      let data: {
-        success?: boolean;
-        message?: string;
-      } = {};
-
-      if (responseText.trim()) {
-        try {
-          data =
-            JSON.parse(
-              responseText
-            );
-        } catch {
-          throw new Error(
-            `Server returned invalid JSON (${response.status}).`
-          );
+      const response = await fetch(
+        `/api/areas/${encodeURIComponent(
+          editingArea.areaId
+        )}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            description: description.trim(),
+            status,
+          }),
         }
-      } else {
+      );
+
+      const text = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
         throw new Error(
-          `Server returned an empty response (${response.status}).`
+          "Server returned an invalid response."
         );
       }
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to update area."
+          data.message || "Failed to update area."
         );
       }
 
-      handleCloseEdit();
+      closeEdit();
 
       if (onUpdated) {
         await onUpdated();
       }
     } catch (error) {
-      console.error(
-        "UPDATE AREA ERROR:",
-        error
-      );
+      console.error(error);
 
-      setError(
+      alert(
         error instanceof Error
           ? error.message
           : "Failed to update area."
       );
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
-  }
+  };
 
-  /* =========================================
-     DELETE AREA
-  ========================================= */
+  const handleDelete = async (area: Area) => {
+    const confirmed = window.confirm(
+      `Delete ${area.name}?\n\nExisting suppliers will be kept but marked inactive.`
+    );
 
-  async function handleDelete(
-    area: Area
-  ) {
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to delete "${area.name}"?\n\nThis action cannot be undone.`
-      );
-
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
-      setDeletingArea(
-        area.areaId
+      setDeletingId(area.areaId);
+
+      const response = await fetch(
+        `/api/areas/${encodeURIComponent(
+          area.areaId
+        )}`,
+        {
+          method: "DELETE",
+        }
       );
 
-      setIsDeleting(true);
+      const text = await response.text();
 
-      const response =
-        await fetch(
-          `/api/areas/${encodeURIComponent(
-            area.areaId
-          )}`,
-          {
-            method: "DELETE",
-            cache: "no-store",
-          }
-        );
+      let data;
 
-      const responseText =
-        await response.text();
-
-      let data: {
-        success?: boolean;
-        message?: string;
-      } = {};
-
-      if (responseText.trim()) {
-        try {
-          data =
-            JSON.parse(
-              responseText
-            );
-        } catch {
-          throw new Error(
-            `Server returned invalid JSON (${response.status}).`
-          );
-        }
-      } else {
+      try {
+        data = JSON.parse(text);
+      } catch {
         throw new Error(
-          `Server returned an empty response (${response.status}).`
+          "Server returned an invalid response."
         );
       }
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to delete area."
+          data.message || "Failed to delete area."
         );
       }
 
@@ -302,10 +171,7 @@ export default function AreasTable({
         await onUpdated();
       }
     } catch (error) {
-      console.error(
-        "DELETE AREA ERROR:",
-        error
-      );
+      console.error(error);
 
       alert(
         error instanceof Error
@@ -313,30 +179,22 @@ export default function AreasTable({
           : "Failed to delete area."
       );
     } finally {
-      setDeletingArea(null);
-
-      setIsDeleting(false);
+      setDeletingId(null);
     }
-  }
-
-  /* =========================================
-     EMPTY STATE
-  ========================================= */
+  };
 
   if (areas.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-10 text-center">
-        <MapPin
-          size={32}
-          className="mx-auto text-slate-700"
-        />
+      <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 px-5 py-14 text-center">
+        <MapPin className="mx-auto h-10 w-10 text-slate-700" />
 
-        <h3 className="mt-4 font-semibold text-white">
+        <h3 className="mt-4 text-lg font-semibold text-slate-300">
           No areas found
         </h3>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Add your first tea collection area.
+        <p className="mt-2 text-sm text-slate-500">
+          Create your first area to start adding
+          suppliers.
         </p>
       </div>
     );
@@ -344,36 +202,34 @@ export default function AreasTable({
 
   return (
     <>
-      {/* =========================================
-          AREA CARDS
-      ========================================= */}
+      {/* AREA CARDS */}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {areas.map((area) => (
           <div
-            key={
-              area.areaId ||
-              area._id
-            }
-            className="group overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] transition duration-200 hover:-translate-y-1 hover:border-emerald-500/30"
+            key={area.areaId}
+            className="group overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60 transition hover:-translate-y-0.5 hover:border-emerald-500/30"
           >
-            {/* Header */}
+            <Link
+              href={`/areas/${encodeURIComponent(
+                area.areaId
+              )}`}
+              className="block p-5"
+            >
+              {/* TOP */}
 
-            <div className="p-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                    <MapPin
-                      size={21}
-                    />
+                    <MapPin className="h-5 w-5" />
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-emerald-400">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-400">
                       {area.areaId}
                     </p>
 
-                    <h3 className="mt-1 font-semibold text-white">
+                    <h3 className="mt-0.5 text-lg font-semibold text-white">
                       {area.name}
                     </h3>
                   </div>
@@ -381,292 +237,150 @@ export default function AreasTable({
 
                 <span
                   className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${
-                    area.status ===
-                    "Inactive"
+                    area.status === "Inactive"
                       ? "bg-red-500/10 text-red-400"
                       : "bg-emerald-500/10 text-emerald-400"
                   }`}
                 >
-                  {area.status ||
-                    "Active"}
+                  {area.status || "Active"}
                 </span>
               </div>
 
-              {area.description && (
-                <p className="mt-4 line-clamp-2 text-xs leading-5 text-slate-500">
-                  {area.description}
-                </p>
-              )}
+              {/* SUPPLIER COUNT */}
 
-              {/* Stats */}
+              <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <Users className="h-4 w-4 text-slate-500" />
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-slate-900/50 p-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Users
-                      size={14}
-                    />
-
+                  <span className="text-sm text-slate-400">
                     Suppliers
-                  </div>
-
-                  <p className="mt-1 text-lg font-bold text-white">
-                    {area.supplierCount ??
-                      0}
-                  </p>
+                  </span>
                 </div>
 
-                <div className="rounded-xl bg-slate-900/50 p-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Scale
-                      size={14}
-                    />
-
-                    Total KG
-                  </div>
-
-                  <p className="mt-1 text-lg font-bold text-white">
-                    {formatNumber(
-                      area.totalKg ??
-                        area.todayKg ??
-                        0
-                    )}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-900/50 p-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Scale
-                      size={14}
-                    />
-
-                    Today
-                  </div>
-
-                  <p className="mt-1 text-lg font-bold text-emerald-400">
-                    {formatNumber(
-                      area.todayKg ??
-                        0
-                    )}{" "}
-                    KG
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-900/50 p-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Wallet
-                      size={14}
-                    />
-
-                    Value
-                  </div>
-
-                  <p className="mt-1 text-sm font-bold text-emerald-400">
-                    {formatMoney(
-                      area.totalValue ??
-                        area.todayValue ??
-                        0
-                    )}
-                  </p>
-                </div>
+                <span className="text-lg font-bold text-white">
+                  {area.supplierCount ?? 0}
+                </span>
               </div>
-            </div>
 
-            {/* =================================
-                ACTION BUTTONS
-            ================================= */}
+              {/* VIEW */}
+
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-slate-500 transition group-hover:text-emerald-400">
+                  View Suppliers
+                </span>
+
+                <ArrowRight className="h-4 w-4 text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400" />
+              </div>
+            </Link>
+
+            {/* ACTIONS */}
 
             <div className="flex border-t border-slate-800">
-              {/* View */}
-
               <button
                 type="button"
-                onClick={() =>
-                  onView?.(area)
-                }
-                className="flex flex-1 items-center justify-between bg-slate-900/20 px-5 py-3.5 text-sm font-medium text-slate-400 transition hover:bg-emerald-500/5 hover:text-emerald-400"
+                onClick={() => openEdit(area)}
+                className="flex flex-1 items-center justify-center gap-2 border-r border-slate-800 py-3 text-xs text-slate-400 transition hover:bg-slate-900 hover:text-emerald-400"
               >
-                <span>
-                  View Area
-                </span>
-
-                <ArrowRight
-                  size={16}
-                  className="transition-transform group-hover:translate-x-1"
-                />
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
               </button>
 
-              {/* Edit */}
-
               <button
                 type="button"
-                onClick={() =>
-                  handleEdit(area)
-                }
-                className="flex h-[53px] w-[53px] items-center justify-center border-l border-slate-800 bg-slate-900/20 text-slate-500 transition hover:bg-blue-500/10 hover:text-blue-400"
-                title="Edit area"
-              >
-                <Pencil
-                  size={16}
-                />
-              </button>
-
-              {/* Delete */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleDelete(area)
-                }
+                onClick={() => handleDelete(area)}
                 disabled={
-                  isDeleting &&
-                  deletingArea ===
-                    area.areaId
+                  deletingId === area.areaId
                 }
-                className="flex h-[53px] w-[53px] items-center justify-center border-l border-slate-800 bg-slate-900/20 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-                title="Delete area"
+                className="flex flex-1 items-center justify-center gap-2 py-3 text-xs text-slate-400 transition hover:bg-slate-900 hover:text-red-400 disabled:opacity-50"
               >
-                {isDeleting &&
-                deletingArea ===
-                  area.areaId ? (
-                  <Loader2
-                    size={16}
-                    className="animate-spin"
-                  />
+                {deletingId === area.areaId ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Trash2
-                    size={16}
-                  />
+                  <Trash2 className="h-3.5 w-3.5" />
                 )}
+
+                Delete
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* =========================================
-          EDIT AREA MODAL
-      ========================================= */}
+      {/* EDIT MODAL */}
 
       {editingArea && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0d1811] shadow-2xl">
-            {/* Modal Header */}
-
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-800 bg-[#020617] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
               <div>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                    <Pencil
-                      size={18}
-                    />
-                  </div>
+                <h2 className="text-lg font-semibold text-white">
+                  Edit Area
+                </h2>
 
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">
-                      Edit Area
-                    </h2>
-
-                    <p className="text-xs text-gray-500">
-                      {editingArea.areaId}
-                    </p>
-                  </div>
-                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {editingArea.areaId}
+                </p>
               </div>
 
               <button
                 type="button"
-                onClick={
-                  handleCloseEdit
-                }
-                disabled={isSaving}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                onClick={closeEdit}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-900 hover:text-white"
               >
-                <X size={18} />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Form */}
-
             <form
-              onSubmit={
-                handleSaveEdit
-              }
-              className="px-6 py-6"
+              onSubmit={handleUpdate}
+              className="space-y-5 p-5"
             >
-              {/* Error */}
-
-              {error && (
-                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-                  <p className="text-sm text-red-400">
-                    {error}
-                  </p>
-                </div>
-              )}
-
-              {/* Area Name */}
-
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-medium text-gray-300">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   Area Name
                 </label>
 
                 <input
-                  type="text"
                   value={name}
-                  onChange={(event) =>
-                    setName(
-                      event.target.value
-                    )
+                  onChange={(e) =>
+                    setName(e.target.value)
                   }
-                  placeholder="Enter area name"
-                  disabled={isSaving}
-                  className="h-11 w-full rounded-xl border border-white/10 bg-[#07100b] px-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-emerald-500/50 disabled:opacity-60"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                  placeholder="Area name"
                 />
               </div>
 
-              {/* Description */}
-
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-medium text-gray-300">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   Description
                 </label>
 
                 <textarea
-                  value={
-                    description
+                  value={description}
+                  onChange={(e) =>
+                    setDescription(e.target.value)
                   }
-                  onChange={(event) =>
-                    setDescription(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Enter area description"
                   rows={3}
-                  disabled={isSaving}
-                  className="w-full resize-none rounded-xl border border-white/10 bg-[#07100b] px-3 py-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-emerald-500/50 disabled:opacity-60"
+                  className="w-full resize-none rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-500"
+                  placeholder="Area description"
                 />
               </div>
 
-              {/* Status */}
-
-              <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium text-gray-300">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">
                   Status
                 </label>
 
                 <select
                   value={status}
-                  onChange={(event) =>
+                  onChange={(e) =>
                     setStatus(
-                      event.target
-                        .value as
+                      e.target.value as
                         | "Active"
                         | "Inactive"
                     )
                   }
-                  disabled={isSaving}
-                  className="h-11 w-full rounded-xl border border-white/10 bg-[#07100b] px-3 text-sm text-white outline-none transition focus:border-emerald-500/50 disabled:opacity-60"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
                 >
                   <option value="Active">
                     Active
@@ -678,46 +392,29 @@ export default function AreasTable({
                 </select>
               </div>
 
-              {/* Buttons */}
-
-              <div className="flex items-center justify-end gap-3">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={
-                    handleCloseEdit
-                  }
-                  disabled={isSaving}
-                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                  onClick={closeEdit}
+                  className="flex-1 rounded-xl border border-slate-800 px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  disabled={
-                    isSaving ||
-                    !name.trim()
-                  }
-                  className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-[#07100b] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={saving}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
                 >
-                  {isSaving ? (
-                    <>
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                      />
-
-                      Saving...
-                    </>
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      <Save
-                        size={16}
-                      />
-
-                      Save Changes
-                    </>
+                    <Save className="h-4 w-4" />
                   )}
+
+                  {saving
+                    ? "Saving..."
+                    : "Save Changes"}
                 </button>
               </div>
             </form>
@@ -727,3 +424,4 @@ export default function AreasTable({
     </>
   );
 }
+
