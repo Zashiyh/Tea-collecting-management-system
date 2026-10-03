@@ -16,29 +16,43 @@ export default function StatCard({
   trend,
 }: StatCardProps) {
   return (
-    <div className="group rounded-2xl border border-slate-800 bg-[#07140d] p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-800 hover:shadow-xl hover:shadow-emerald-950/20">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-400">{title}</p>
+    <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:-translate-y-0.5 hover:border-emerald-800 hover:shadow-lg hover:shadow-emerald-950/20 sm:p-4">
+      {/* TOP */}
 
-          <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {/* TITLE */}
+
+          <p className="truncate text-[11px] font-medium text-slate-500 sm:text-xs">
+            {title}
+          </p>
+
+          {/* VALUE */}
+
+          <h3 className="mt-1 text-lg font-bold leading-tight tracking-tight text-white sm:text-xl">
             {value}
           </h3>
         </div>
 
-        <div className="rounded-xl bg-emerald-600/10 p-3 text-emerald-400">
-          <Icon size={22} />
+        {/* ICON */}
+
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-400 sm:h-10 sm:w-10">
+          <Icon size={18} />
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 text-xs">
+      {/* BOTTOM */}
+
+      <div className="mt-2 flex min-w-0 items-center gap-1.5">
         {trend && (
-          <span className="rounded-md bg-emerald-500/10 px-2 py-1 font-semibold text-emerald-400">
+          <span className="shrink-0 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
             {trend}
           </span>
         )}
 
-        <span className="text-slate-500">{subtitle}</span>
+        <span className="truncate text-[10px] text-slate-600 sm:text-[11px]">
+          {subtitle}
+        </span>
       </div>
     </div>
   );

@@ -71,9 +71,7 @@ function formatDateForDisplay(date: string) {
     year: "numeric",
     month: "long",
     day: "2-digit",
-  }).format(
-    new Date(`${date}T00:00:00+05:30`)
-  );
+  }).format(new Date(`${date}T00:00:00+05:30`));
 }
 
 function getTodaySriLanka() {
@@ -85,26 +83,18 @@ function getTodaySriLanka() {
   }).formatToParts(new Date());
 
   const year =
-    parts.find(
-      (part) => part.type === "year"
-    )?.value ?? "";
+    parts.find((part) => part.type === "year")?.value ?? "";
 
   const month =
-    parts.find(
-      (part) => part.type === "month"
-    )?.value ?? "";
+    parts.find((part) => part.type === "month")?.value ?? "";
 
   const day =
-    parts.find(
-      (part) => part.type === "day"
-    )?.value ?? "";
+    parts.find((part) => part.type === "day")?.value ?? "";
 
   return `${year}-${month}-${day}`;
 }
 
-function getDifferenceStatus(
-  difference: number
-) {
+function getDifferenceStatus(difference: number) {
   if (difference === 0) {
     return {
       label: "Matched",
@@ -129,22 +119,17 @@ function getDifferenceStatus(
 }
 
 export default function DashboardPage() {
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const [selectedDate, setSelectedDate] =
     useState(getTodaySriLanka());
 
   const [data, setData] =
-    useState<DashboardResponse | null>(
-      null
-    );
+    useState<DashboardResponse | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   /* =====================================================
      FETCH DASHBOARD
@@ -158,44 +143,32 @@ export default function DashboardPage() {
       setError("");
 
       const response = await fetch(
-        `/api/dashboard?date=${encodeURIComponent(
-          date
-        )}`,
+        `/api/dashboard?date=${encodeURIComponent(date)}`,
         {
           method: "GET",
           cache: "no-store",
         }
       );
 
-      const text =
-        await response.text();
+      const text = await response.text();
 
       let result: DashboardResponse;
 
       try {
         result = JSON.parse(text);
       } catch {
-        throw new Error(
-          "Invalid dashboard response"
-        );
+        throw new Error("Invalid dashboard response");
       }
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          result.message ||
-            "Failed to load dashboard"
+          result.message || "Failed to load dashboard"
         );
       }
 
       setData(result);
     } catch (error) {
-      console.error(
-        "Dashboard fetch error:",
-        error
-      );
+      console.error("Dashboard fetch error:", error);
 
       setError(
         error instanceof Error
@@ -226,34 +199,19 @@ export default function DashboardPage() {
   ===================================================== */
 
   function getMaxWeight() {
-    if (
-      !data ||
-      data.areas.length === 0
-    ) {
+    if (!data || data.areas.length === 0) {
       return 1;
     }
 
-    const values =
-      data.areas.flatMap(
-        (area) => [
-          Number(
-            area.totalTeaWeightKg || 0
-          ),
-          Number(
-            area.totalFactoryWeightKg ||
-              0
-          ),
-        ]
-      );
+    const values = data.areas.flatMap((area) => [
+      Number(area.totalTeaWeightKg || 0),
+      Number(area.totalFactoryWeightKg || 0),
+    ]);
 
-    return Math.max(
-      ...values,
-      1
-    );
+    return Math.max(...values, 1);
   }
 
-  const maxWeight =
-    getMaxWeight();
+  const maxWeight = getMaxWeight();
 
   return (
     <div className="min-h-screen bg-[#020a06] text-white">
@@ -263,9 +221,7 @@ export default function DashboardPage() {
 
       <Sidebar
         mobileOpen={mobileOpen}
-        onClose={() =>
-          setMobileOpen(false)
-        }
+        onClose={() => setMobileOpen(false)}
       />
 
       {/* =====================================================
@@ -274,9 +230,7 @@ export default function DashboardPage() {
 
       <div className="lg:pl-72">
         <Header
-          onMenuClick={() =>
-            setMobileOpen(true)
-          }
+          onMenuClick={() => setMobileOpen(true)}
         />
 
         <main className="p-4 sm:p-6 lg:p-8">
@@ -297,15 +251,19 @@ export default function DashboardPage() {
                 </h1>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  View cumulative tea weight and
-                  factory weight by area.
+                  View cumulative tea weight and factory weight by
+                  area.
                 </p>
               </div>
 
-              {/* DATE FILTER */}
+              {/* =================================================
+                  DATE FILTER
+              ================================================= */}
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="relative">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                {/* DATE SELECTOR */}
+
+                <div className="relative w-full sm:w-auto">
                   <CalendarDays
                     size={18}
                     className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white"
@@ -315,33 +273,29 @@ export default function DashboardPage() {
                     type="date"
                     value={selectedDate}
                     onChange={(event) =>
-                      setSelectedDate(
-                        event.target.value
-                      )
+                      setSelectedDate(event.target.value)
                     }
-                    className="h-11 rounded-xl border border-slate-800 bg-slate-900 pl-11 pr-4 text-sm text-white outline-none transition focus:border-emerald-500"
+                    className="h-11 w-full rounded-xl border border-slate-800 bg-slate-900 pl-11 pr-4 text-sm text-white outline-none transition focus:border-emerald-500 sm:w-auto"
                     style={{
                       colorScheme: "dark",
                     }}
                   />
                 </div>
 
+                {/* REFRESH */}
+
                 <button
                   type="button"
                   onClick={() =>
-                    fetchDashboard(
-                      selectedDate
-                    )
+                    fetchDashboard(selectedDate)
                   }
                   disabled={loading}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 text-sm text-slate-300 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
+                  className="flex h-9 w-fit self-end items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50 sm:h-11 sm:self-auto sm:px-4 sm:text-sm"
                 >
                   <RefreshCw
-                    size={16}
+                    size={14}
                     className={
-                      loading
-                        ? "animate-spin"
-                        : ""
+                      loading ? "animate-spin" : ""
                     }
                   />
 
@@ -368,12 +322,13 @@ export default function DashboardPage() {
 
                   <p className="mt-0.5 text-sm font-semibold text-white">
                     01 October 2026
+
                     <span className="mx-2 text-slate-600">
                       →
                     </span>
+
                     {formatDateForDisplay(
-                      data?.toDate ||
-                        selectedDate
+                      data?.toDate || selectedDate
                     )}
                   </p>
                 </div>
@@ -390,16 +345,12 @@ export default function DashboardPage() {
 
             {error && (
               <div className="mb-6 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  {error}
-                </span>
+                <span>{error}</span>
 
                 <button
                   type="button"
                   onClick={() =>
-                    fetchDashboard(
-                      selectedDate
-                    )
+                    fetchDashboard(selectedDate)
                   }
                   className="rounded-lg border border-red-500/20 px-4 py-2 text-red-300 hover:bg-red-500/10"
                 >
@@ -444,8 +395,7 @@ export default function DashboardPage() {
 
                         <p className="mt-3 text-2xl font-bold text-white sm:text-3xl">
                           {formatNumber(
-                            summary?.totalTeaWeightKg ||
-                              0
+                            summary?.totalTeaWeightKg || 0
                           )}{" "}
                           <span className="text-sm font-medium text-slate-500">
                             KG
@@ -477,8 +427,7 @@ export default function DashboardPage() {
 
                         <p className="mt-3 text-2xl font-bold text-white sm:text-3xl">
                           {formatNumber(
-                            summary?.totalFactoryWeightKg ||
-                              0
+                            summary?.totalFactoryWeightKg || 0
                           )}{" "}
                           <span className="text-sm font-medium text-slate-500">
                             KG
@@ -510,22 +459,19 @@ export default function DashboardPage() {
 
                         <p
                           className={`mt-3 text-2xl font-bold sm:text-3xl ${
-                            (summary?.totalDifferenceKg ||
-                              0) > 0
+                            (summary?.totalDifferenceKg || 0) > 0
                               ? "text-cyan-400"
-                              : (summary?.totalDifferenceKg ||
-                                    0) < 0
+                              : (summary?.totalDifferenceKg || 0) < 0
                                 ? "text-red-400"
                                 : "text-emerald-400"
                           }`}
                         >
-                          {(summary?.totalDifferenceKg ||
-                            0) > 0
+                          {(summary?.totalDifferenceKg || 0) > 0
                             ? "+"
                             : ""}
+
                           {formatNumber(
-                            summary?.totalDifferenceKg ||
-                              0
+                            summary?.totalDifferenceKg || 0
                           )}{" "}
                           <span className="text-sm font-medium text-slate-500">
                             KG
@@ -556,14 +502,11 @@ export default function DashboardPage() {
                         </p>
 
                         <p className="mt-3 text-2xl font-bold text-white sm:text-3xl">
-                          {summary?.collectedAreas ||
-                            0}
+                          {summary?.collectedAreas || 0}
 
                           <span className="text-lg text-slate-600">
                             {" "}
-                            /{" "}
-                            {summary?.totalAreas ||
-                              0}
+                            / {summary?.totalAreas || 0}
                           </span>
                         </p>
 
@@ -598,8 +541,7 @@ export default function DashboardPage() {
                         <p className="mt-1 text-xs text-slate-500">
                           Cumulative from 01/10/2026 to{" "}
                           {formatDateForDisplay(
-                            data?.toDate ||
-                              selectedDate
+                            data?.toDate || selectedDate
                           )}
                         </p>
                       </div>
@@ -621,288 +563,246 @@ export default function DashboardPage() {
                         />
 
                         <p className="mt-4 text-sm text-slate-500">
-                          No collection recorded
-                          for this period.
+                          No collection recorded for this period.
                         </p>
 
                         <p className="mt-1 text-xs text-slate-700">
-                          Select another date to
-                          view previous records.
+                          Select another date to view previous
+                          records.
                         </p>
                       </div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-800/70">
 
-                      {areas.map(
-                        (area) => {
+                      {areas.map((area) => {
+                        const status =
+                          getDifferenceStatus(
+                            area.totalDifferenceKg
+                          );
 
-                          const status =
-                            getDifferenceStatus(
-                              area.totalDifferenceKg
-                            );
+                        const fieldWidth =
+                          area.totalTeaWeightKg > 0
+                            ? Math.max(
+                                3,
+                                (area.totalTeaWeightKg /
+                                  maxWeight) *
+                                  100
+                              )
+                            : 0;
 
-                          const fieldWidth =
-                            area.totalTeaWeightKg >
-                            0
-                              ? Math.max(
-                                  3,
-                                  (area.totalTeaWeightKg /
-                                    maxWeight) *
-                                    100
-                                )
-                              : 0;
+                        const factoryWidth =
+                          area.totalFactoryWeightKg > 0
+                            ? Math.max(
+                                3,
+                                (area.totalFactoryWeightKg /
+                                  maxWeight) *
+                                  100
+                              )
+                            : 0;
 
-                          const factoryWidth =
-                            area.totalFactoryWeightKg >
-                            0
-                              ? Math.max(
-                                  3,
-                                  (area.totalFactoryWeightKg /
-                                    maxWeight) *
-                                    100
-                                )
-                              : 0;
+                        return (
+                          <Link
+                            key={area.areaId}
+                            href={`/dashboard/areas/${encodeURIComponent(
+                              area.areaId
+                            )}?from=2026-10-01&to=${encodeURIComponent(
+                              data?.toDate || selectedDate
+                            )}`}
+                            className="group block p-5 transition hover:bg-slate-900/30"
+                          >
 
-                          return (
-                            <Link
-                              key={
-                                area.areaId
-                              }
-                              href={`/dashboard/areas/${encodeURIComponent(
-                                area.areaId
-                              )}?from=2026-10-01&to=${encodeURIComponent(
-                                data?.toDate ||
-                                  selectedDate
-                              )}`}
-                              className="group block p-5 transition hover:bg-slate-900/30"
-                            >
+                            {/* AREA HEADER */}
 
-                              {/* AREA HEADER */}
+                            <div className="mb-5 flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3">
 
-                              <div className="mb-5 flex items-center justify-between gap-4">
-
-                                <div className="flex items-center gap-3">
-
-                                  <div className="flex h-10 min-w-10 items-center justify-center rounded-xl bg-emerald-500/10 px-3 text-sm font-bold text-emerald-400">
-                                    {
-                                      area.areaName
-                                    }
-                                  </div>
-
-                                  <div>
-                                    <p className="font-semibold text-white">
-                                      {
-                                        area.areaName
-                                      }
-                                    </p>
-
-                                    <p className="text-xs text-slate-600">
-                                      {
-                                        area.collectionCount
-                                      }{" "}
-                                      collection
-                                      {area.collectionCount !==
-                                      1
-                                        ? "s"
-                                        : ""}
-                                    </p>
-                                  </div>
-
+                                <div className="flex h-10 min-w-10 items-center justify-center rounded-xl bg-emerald-500/10 px-3 text-sm font-bold text-emerald-400">
+                                  {area.areaName}
                                 </div>
 
-                                <ArrowRight
-                                  size={18}
-                                  className="text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400"
+                                <div>
+                                  <p className="font-semibold text-white">
+                                    {area.areaName}
+                                  </p>
+
+                                  <p className="text-xs text-slate-600">
+                                    {area.collectionCount}{" "}
+                                    collection
+                                    {area.collectionCount !== 1
+                                      ? "s"
+                                      : ""}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <ArrowRight
+                                size={18}
+                                className="text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400"
+                              />
+                            </div>
+
+                            {/* FIELD WEIGHT BAR */}
+
+                            <div className="mb-5">
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+
+                                  <span className="text-xs font-medium text-slate-400">
+                                    Field Weight
+                                  </span>
+                                </div>
+
+                                <span className="text-xs font-semibold text-white">
+                                  {formatNumber(
+                                    area.totalTeaWeightKg
+                                  )}{" "}
+                                  KG
+                                </span>
+                              </div>
+
+                              <div className="relative h-10 overflow-hidden rounded-xl bg-slate-900">
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/80 transition-all duration-500 group-hover:bg-emerald-400"
+                                  style={{
+                                    width: `${fieldWidth}%`,
+                                  }}
                                 />
 
-                              </div>
-
-                              {/* =================================================
-                                  FIELD WEIGHT BAR
-                              ================================================= */}
-
-                              <div className="mb-5">
-
-                                <div className="mb-2 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-
-                                    <span className="text-xs font-medium text-slate-400">
-                                      Field Weight
-                                    </span>
-                                  </div>
-
+                                <div className="relative z-10 flex h-full items-center px-3">
                                   <span className="text-xs font-semibold text-white">
-                                    {formatNumber(
-                                      area.totalTeaWeightKg
-                                    )}{" "}
-                                    KG
+                                    {area.totalTeaWeightKg > 0
+                                      ? `${formatNumber(
+                                          area.totalTeaWeightKg
+                                        )} KG`
+                                      : "No field collection"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* FACTORY WEIGHT BAR */}
+
+                            <div className="mb-5">
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+
+                                  <span className="text-xs font-medium text-slate-400">
+                                    Factory Weight
                                   </span>
                                 </div>
 
-                                <div className="relative h-10 overflow-hidden rounded-xl bg-slate-900">
-
-                                  <div
-                                    className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/80 transition-all duration-500 group-hover:bg-emerald-400"
-                                    style={{
-                                      width: `${fieldWidth}%`,
-                                    }}
-                                  />
-
-                                  <div className="relative z-10 flex h-full items-center px-3">
-                                    <span className="text-xs font-semibold text-white">
-                                      {area.totalTeaWeightKg >
-                                      0
-                                        ? `${formatNumber(
-                                            area.totalTeaWeightKg
-                                          )} KG`
-                                        : "No field collection"}
-                                    </span>
-                                  </div>
-
-                                </div>
-
+                                <span className="text-xs font-semibold text-blue-400">
+                                  {formatNumber(
+                                    area.totalFactoryWeightKg
+                                  )}{" "}
+                                  KG
+                                </span>
                               </div>
 
-                              {/* =================================================
-                                  FACTORY WEIGHT BAR
-                              ================================================= */}
+                              <div className="relative h-10 overflow-hidden rounded-xl bg-slate-900">
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-xl bg-blue-500/70 transition-all duration-500 group-hover:bg-blue-400/80"
+                                  style={{
+                                    width: `${factoryWidth}%`,
+                                  }}
+                                />
 
-                              <div className="mb-5">
-
-                                <div className="mb-2 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
-
-                                    <span className="text-xs font-medium text-slate-400">
-                                      Factory Weight
-                                    </span>
-                                  </div>
-
-                                  <span className="text-xs font-semibold text-blue-400">
-                                    {formatNumber(
-                                      area.totalFactoryWeightKg
-                                    )}{" "}
-                                    KG
+                                <div className="relative z-10 flex h-full items-center px-3">
+                                  <span className="text-xs font-semibold text-white">
+                                    {area.totalFactoryWeightKg > 0
+                                      ? `${formatNumber(
+                                          area.totalFactoryWeightKg
+                                        )} KG`
+                                      : "No factory weight"}
                                   </span>
                                 </div>
+                              </div>
+                            </div>
 
-                                <div className="relative h-10 overflow-hidden rounded-xl bg-slate-900">
+                            {/* VALUES */}
 
-                                  <div
-                                    className="absolute inset-y-0 left-0 rounded-xl bg-blue-500/70 transition-all duration-500 group-hover:bg-blue-400/80"
-                                    style={{
-                                      width: `${factoryWidth}%`,
-                                    }}
-                                  />
+                            <div className="grid grid-cols-1 gap-3 border-t border-slate-800 pt-4 sm:grid-cols-4">
 
-                                  <div className="relative z-10 flex h-full items-center px-3">
-                                    <span className="text-xs font-semibold text-white">
-                                      {area.totalFactoryWeightKg >
-                                      0
-                                        ? `${formatNumber(
-                                            area.totalFactoryWeightKg
-                                          )} KG`
-                                        : "No factory weight"}
-                                    </span>
-                                  </div>
+                              {/* FIELD */}
 
-                                </div>
+                              <div className="flex items-center justify-between sm:block">
+                                <span className="text-xs text-slate-500">
+                                  Field Total
+                                </span>
 
+                                <span className="font-semibold text-white sm:mt-1 sm:block">
+                                  {formatNumber(
+                                    area.totalTeaWeightKg
+                                  )}{" "}
+                                  KG
+                                </span>
                               </div>
 
-                              {/* =================================================
-                                  VALUES
-                              ================================================= */}
+                              {/* FACTORY */}
 
-                              <div className="grid grid-cols-1 gap-3 border-t border-slate-800 pt-4 sm:grid-cols-4">
+                              <div className="flex items-center justify-between sm:block">
+                                <span className="text-xs text-slate-500">
+                                  Factory Total
+                                </span>
 
-                                {/* FIELD */}
-
-                                <div className="flex items-center justify-between sm:block">
-                                  <span className="text-xs text-slate-500">
-                                    Field Total
-                                  </span>
-
-                                  <span className="font-semibold text-white sm:mt-1 sm:block">
-                                    {formatNumber(
-                                      area.totalTeaWeightKg
-                                    )}{" "}
-                                    KG
-                                  </span>
-                                </div>
-
-                                {/* FACTORY */}
-
-                                <div className="flex items-center justify-between sm:block">
-                                  <span className="text-xs text-slate-500">
-                                    Factory Total
-                                  </span>
-
-                                  <span className="font-semibold text-blue-400 sm:mt-1 sm:block">
-                                    {formatNumber(
-                                      area.totalFactoryWeightKg
-                                    )}{" "}
-                                    KG
-                                  </span>
-                                </div>
-
-                                {/* DIFFERENCE */}
-
-                                <div className="flex items-center justify-between sm:block">
-                                  <span className="text-xs text-slate-500">
-                                    Difference
-                                  </span>
-
-                                  <span
-                                    className={`font-semibold sm:mt-1 sm:block ${
-                                      area.totalDifferenceKg >
-                                      0
-                                        ? "text-cyan-400"
-                                        : area.totalDifferenceKg <
-                                            0
-                                          ? "text-red-400"
-                                          : "text-emerald-400"
-                                    }`}
-                                  >
-                                    {area.totalDifferenceKg >
-                                    0
-                                      ? "+"
-                                      : ""}
-                                    {formatNumber(
-                                      area.totalDifferenceKg
-                                    )}{" "}
-                                    KG
-                                  </span>
-                                </div>
-
-                                {/* STATUS */}
-
-                                <div className="flex items-center justify-between sm:block">
-                                  <span className="text-xs text-slate-500">
-                                    Status
-                                  </span>
-
-                                  <span
-                                    className={`mt-1 inline-flex rounded-lg border px-3 py-1 text-xs font-medium ${status.className}`}
-                                  >
-                                    {
-                                      status.label
-                                    }
-                                  </span>
-                                </div>
-
+                                <span className="font-semibold text-blue-400 sm:mt-1 sm:block">
+                                  {formatNumber(
+                                    area.totalFactoryWeightKg
+                                  )}{" "}
+                                  KG
+                                </span>
                               </div>
 
-                            </Link>
-                          );
-                        }
-                      )}
+                              {/* DIFFERENCE */}
+
+                              <div className="flex items-center justify-between sm:block">
+                                <span className="text-xs text-slate-500">
+                                  Difference
+                                </span>
+
+                                <span
+                                  className={`font-semibold sm:mt-1 sm:block ${
+                                    area.totalDifferenceKg > 0
+                                      ? "text-cyan-400"
+                                      : area.totalDifferenceKg < 0
+                                        ? "text-red-400"
+                                        : "text-emerald-400"
+                                  }`}
+                                >
+                                  {area.totalDifferenceKg > 0
+                                    ? "+"
+                                    : ""}
+
+                                  {formatNumber(
+                                    area.totalDifferenceKg
+                                  )}{" "}
+                                  KG
+                                </span>
+                              </div>
+
+                              {/* STATUS */}
+
+                              <div className="flex items-center justify-between sm:block">
+                                <span className="text-xs text-slate-500">
+                                  Status
+                                </span>
+
+                                <span
+                                  className={`mt-1 inline-flex rounded-lg border px-3 py-1 text-xs font-medium ${status.className}`}
+                                >
+                                  {status.label}
+                                </span>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
 
                     </div>
                   )}
-
                 </div>
 
                 {/* =================================================
@@ -920,8 +820,7 @@ export default function DashboardPage() {
 
                     <p className="mt-2 text-2xl font-bold text-emerald-400">
                       {formatNumber(
-                        summary?.totalTeaWeightKg ||
-                          0
+                        summary?.totalTeaWeightKg || 0
                       )}{" "}
                       KG
                     </p>
@@ -936,8 +835,7 @@ export default function DashboardPage() {
 
                     <p className="mt-2 text-2xl font-bold text-blue-400">
                       {formatNumber(
-                        summary?.totalFactoryWeightKg ||
-                          0
+                        summary?.totalFactoryWeightKg || 0
                       )}{" "}
                       KG
                     </p>
@@ -952,27 +850,23 @@ export default function DashboardPage() {
 
                     <p
                       className={`mt-2 text-2xl font-bold ${
-                        (summary?.totalDifferenceKg ||
-                          0) > 0
+                        (summary?.totalDifferenceKg || 0) > 0
                           ? "text-cyan-400"
-                          : (summary?.totalDifferenceKg ||
-                                0) < 0
+                          : (summary?.totalDifferenceKg || 0) < 0
                             ? "text-red-400"
                             : "text-emerald-400"
                       }`}
                     >
-                      {(summary?.totalDifferenceKg ||
-                        0) > 0
+                      {(summary?.totalDifferenceKg || 0) > 0
                         ? "+"
                         : ""}
+
                       {formatNumber(
-                        summary?.totalDifferenceKg ||
-                          0
+                        summary?.totalDifferenceKg || 0
                       )}{" "}
                       KG
                     </p>
                   </div>
-
                 </div>
               </>
             )}
