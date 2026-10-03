@@ -47,22 +47,57 @@ export async function GET(
 
     const { areaId } = await context.params;
 
-    const { searchParams } =
-      new URL(request.url);
-
-    const fromDate =
-      searchParams.get("from") ||
-      START_DATE;
-
-    const toDate =
-      searchParams.get("to") ||
-      getTodaySriLanka();
-
     if (!areaId) {
       return NextResponse.json(
         {
           success: false,
-          message: "Area ID is required",
+          message: "Area ID is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const decodedAreaId =
+      decodeURIComponent(areaId);
+
+    const { searchParams } =
+      new URL(request.url);
+
+    /*
+      Optional date filtering.
+
+      If no from/to is supplied,
+      show ALL collections from START_DATE
+      up to today.
+    */
+
+    const fromParam =
+      searchParams.get("from");
+
+    const toParam =
+      searchParams.get("to");
+
+    const fromDate =
+      fromParam || START_DATE;
+
+    const toDate =
+      toParam || getTodaySriLanka();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid from date.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(toDate)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid to date.",
         },
         { status: 400 }
       );
@@ -70,14 +105,14 @@ export async function GET(
 
     const area =
       await Area.findOne({
-        areaId: decodeURIComponent(areaId),
+        areaId: decodedAreaId,
       }).lean();
 
     if (!area) {
       return NextResponse.json(
         {
           success: false,
-          message: "Area not found",
+          message: `Area not found: ${decodedAreaId}`,
         },
         { status: 404 }
       );
@@ -90,6 +125,11 @@ export async function GET(
     const {
       end: endDate,
     } = getSriLankaDayRange(toDate);
+
+    /*
+      Get ALL collections for this area
+      inside the selected range.
+    */
 
     const collections =
       await DailyAreaCollection.find({
@@ -109,20 +149,21 @@ export async function GET(
 
     const formattedCollections =
       collections.map((item) => {
-        const teaWeight = Number(
-          item.totalKg || 0
-        );
+        const teaWeight =
+          Number(item.totalKg || 0);
 
-        const factoryWeight = Number(
-          item.factoryWeightKg || 0
-        );
+        const factoryWeight =
+          Number(
+            item.factoryWeightKg || 0
+          );
 
-        const differenceKg = Number(
-          (
-            factoryWeight -
-            teaWeight
-          ).toFixed(2)
-        );
+        const differenceKg =
+          Number(
+            (
+              factoryWeight -
+              teaWeight
+            ).toFixed(2)
+          );
 
         totalTeaWeightKg +=
           teaWeight;
@@ -156,13 +197,15 @@ export async function GET(
         };
       });
 
-    totalTeaWeightKg = Number(
-      totalTeaWeightKg.toFixed(2)
-    );
+    totalTeaWeightKg =
+      Number(
+        totalTeaWeightKg.toFixed(2)
+      );
 
-    totalFactoryWeightKg = Number(
-      totalFactoryWeightKg.toFixed(2)
-    );
+    totalFactoryWeightKg =
+      Number(
+        totalFactoryWeightKg.toFixed(2)
+      );
 
     const totalDifferenceKg =
       Number(
@@ -201,6 +244,7 @@ export async function GET(
       },
       {
         status: 200,
+
         headers: {
           "Cache-Control":
             "no-store, no-cache, must-revalidate",
@@ -216,10 +260,11 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
+
         message:
           error instanceof Error
             ? error.message
-            : "Failed to load area dashboard",
+            : "Failed to load area dashboard.",
       },
       {
         status: 500,

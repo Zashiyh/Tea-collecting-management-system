@@ -15,6 +15,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+/* =========================================================
+   TYPES
+========================================================= */
+
 interface Collection {
   collectionId: string;
   date: string;
@@ -36,14 +40,31 @@ interface AreaSummary {
 interface AreaResponse {
   success: boolean;
   message?: string;
+
   area?: {
     areaId: string;
     areaName: string;
   };
+
   fromDate?: string;
   toDate?: string;
+
   summary?: AreaSummary;
+
   collections?: Collection[];
+}
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function getTodaySriLanka() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function formatDate(dateValue: string) {
@@ -71,28 +92,59 @@ function formatNumber(value: number) {
   });
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 export default function AreaDashboardPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+
+  /* =======================================================
+     AREA ID
+  ======================================================= */
 
   const areaId = decodeURIComponent(
     String(params.areaId || "")
   );
 
-  const initialFrom =
-    searchParams.get("from") || "2026-10-01";
+  /* =======================================================
+     DATE FROM URL
+     
+     Dashboard sends:
+     
+     ?date=2026-10-03
+     
+     So use that first.
+     
+     If user opens page directly:
+     
+     01/10 -> today
+  ======================================================= */
 
-  const initialTo =
-    searchParams.get("to") ||
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Colombo",
-    }).format(new Date());
+  const selectedDate =
+    searchParams.get("date") ||
+    getTodaySriLanka();
+
+  /* =======================================================
+     DATE STATES
+  ======================================================= */
 
   const [fromDate, setFromDate] =
-    useState(initialFrom);
+    useState(
+      searchParams.get("from") ||
+        selectedDate
+    );
 
   const [toDate, setToDate] =
-    useState(initialTo);
+    useState(
+      searchParams.get("to") ||
+        selectedDate
+    );
+
+  /* =======================================================
+     DATA STATES
+  ======================================================= */
 
   const [areaName, setAreaName] =
     useState("");
@@ -114,18 +166,39 @@ export default function AreaDashboardPage() {
   const [error, setError] =
     useState("");
 
-  /* =====================================================
+  /* =======================================================
      LOAD AREA COLLECTIONS
-  ===================================================== */
+  ======================================================= */
 
-  async function fetchAreaCollections() {
+  async function fetchAreaCollections(
+    customFrom?: string,
+    customTo?: string
+  ) {
     try {
       setLoading(true);
       setError("");
 
+      const finalFrom =
+        customFrom || fromDate;
+
+      const finalTo =
+        customTo || toDate;
+
+      if (!finalFrom || !finalTo) {
+        throw new Error(
+          "Please select a valid date."
+        );
+      }
+
+      if (finalFrom > finalTo) {
+        throw new Error(
+          "From date cannot be after To date."
+        );
+      }
+
       const query = new URLSearchParams({
-        from: fromDate,
-        to: toDate,
+        from: finalFrom,
+        to: finalTo,
       });
 
       const response = await fetch(
@@ -196,9 +269,21 @@ export default function AreaDashboardPage() {
     }
   }
 
-  /* =====================================================
+  /* =======================================================
      INITIAL LOAD
-  ===================================================== */
+     
+     IMPORTANT:
+     Dashboard sends date=selectedDate.
+     
+     Therefore:
+     
+     from = selectedDate
+     to   = selectedDate
+     
+     Example:
+     
+     03/10 -> 03/10
+  ======================================================= */
 
   useEffect(() => {
     if (!areaId) {
@@ -207,592 +292,808 @@ export default function AreaDashboardPage() {
       return;
     }
 
-    fetchAreaCollections();
+    const urlDate =
+      searchParams.get("date");
+
+    const urlFrom =
+      searchParams.get("from");
+
+    const urlTo =
+      searchParams.get("to");
+
+    const initialFromDate =
+      urlFrom ||
+      urlDate ||
+      getTodaySriLanka();
+
+    const initialToDate =
+      urlTo ||
+      urlDate ||
+      getTodaySriLanka();
+
+    setFromDate(initialFromDate);
+    setToDate(initialToDate);
+
+    fetchAreaCollections(
+      initialFromDate,
+      initialToDate
+    );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaId]);
 
-  /* =====================================================
-     SEARCH DATE RANGE
-  ===================================================== */
+  /* =======================================================
+     APPLY DATE FILTER
+  ======================================================= */
 
   function handleApplyDates() {
-    fetchAreaCollections();
+    fetchAreaCollections(
+      fromDate,
+      toDate
+    );
   }
+
+  /* =======================================================
+     PAGE
+  ======================================================= */
 
   return (
     <div className="min-h-screen bg-[#020a06] text-white">
-      {/* =================================================
-          SIDEBAR
-      ================================================= */}
-
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 lg:block">
-        <div className="h-full">
-          {/* Sidebar is loaded below through normal layout */}
-        </div>
-      </aside>
 
       {/* =================================================
           MAIN
       ================================================= */}
 
-      <div className="lg:pl-0">
-        <main className="min-h-screen p-3 sm:p-5 lg:p-8">
-          <div className="mx-auto max-w-[1500px]">
+      <main className="min-h-screen p-3 sm:p-5 lg:p-8">
 
-            {/* =================================================
-                BACK
-            ================================================= */}
+        <div className="mx-auto max-w-[1500px]">
 
-            <Link
-              href="/dashboard"
-              className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-emerald-400 sm:mb-6 sm:text-sm"
-            >
-              <ArrowLeft size={16} />
+          {/* =================================================
+              BACK
+          ================================================= */}
 
-              Back to Dashboard
-            </Link>
+          <Link
+            href="/dashboard"
+            className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-emerald-400 sm:mb-6 sm:text-sm"
+          >
+            <ArrowLeft size={16} />
 
-            {/* =================================================
-                PAGE HEADER
-            ================================================= */}
+            Back to Dashboard
+          </Link>
 
-            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 sm:h-12 sm:w-12">
-                    <Leaf size={22} />
-                  </div>
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
-                  <div>
-                    <p className="text-xs font-medium text-emerald-400">
-                      {areaId}
-                    </p>
+          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
-                    <h1 className="text-xl font-bold text-white sm:text-2xl lg:text-3xl">
-                      {areaName || "Area Collections"}
-                    </h1>
+            <div>
 
-                    <p className="mt-1 text-[10px] text-slate-500 sm:text-sm">
-                      Daily tea collections for this area.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <div className="flex items-center gap-3">
 
-              {/* DATE FILTER */}
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 sm:h-12 sm:w-12">
 
-              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-                <div className="flex flex-1 items-center gap-2">
-                  <div className="relative flex-1 sm:flex-none">
-                    <CalendarDays
-                      size={15}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                    />
+                  <Leaf size={22} />
 
-                    <input
-                      type="date"
-                      value={fromDate}
-                      onChange={(event) =>
-                        setFromDate(
-                          event.target.value
-                        )
-                      }
-                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-auto sm:pr-3"
-                      style={{
-                        colorScheme: "dark",
-                      }}
-                    />
-                  </div>
-
-                  <span className="text-xs text-slate-600">
-                    to
-                  </span>
-
-                  <div className="relative flex-1 sm:flex-none">
-                    <CalendarDays
-                      size={15}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                    />
-
-                    <input
-                      type="date"
-                      value={toDate}
-                      onChange={(event) =>
-                        setToDate(
-                          event.target.value
-                        )
-                      }
-                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-auto sm:pr-3"
-                      style={{
-                        colorScheme: "dark",
-                      }}
-                    />
-                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={
-                    handleApplyDates
-                  }
-                  disabled={loading}
-                  className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-4 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
-                >
-                  <RefreshCw
-                    size={14}
-                    className={
-                      loading
-                        ? "animate-spin"
-                        : ""
-                    }
-                  />
+                <div>
 
-                  Apply
-                </button>
+                  <p className="text-xs font-medium text-emerald-400">
+                    {areaId}
+                  </p>
+
+                  <h1 className="text-xl font-bold text-white sm:text-2xl lg:text-3xl">
+                    {areaName ||
+                      "Area Collections"}
+                  </h1>
+
+                  <p className="mt-1 text-[10px] text-slate-500 sm:text-sm">
+                    Daily tea collections for this area.
+                  </p>
+
+                </div>
+
               </div>
+
             </div>
 
             {/* =================================================
-                ERROR
+                DATE FILTER
             ================================================= */}
 
-            {error && (
-              <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-400 sm:flex-row sm:items-center sm:justify-between">
-                <span>{error}</span>
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
 
-                <button
-                  type="button"
-                  onClick={
-                    fetchAreaCollections
-                  }
-                  className="flex w-fit items-center gap-2 rounded-lg border border-red-500/20 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
-                >
-                  <RefreshCw size={14} />
+              <div className="flex flex-1 items-center gap-2">
 
-                  Try Again
-                </button>
+                {/* FROM */}
+
+                <div className="relative flex-1 sm:flex-none">
+
+                  <CalendarDays
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  />
+
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(event) =>
+                      setFromDate(
+                        event.target.value
+                      )
+                    }
+                    className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-auto sm:pr-3"
+                    style={{
+                      colorScheme: "dark",
+                    }}
+                  />
+
+                </div>
+
+                <span className="text-xs text-slate-600">
+                  to
+                </span>
+
+                {/* TO */}
+
+                <div className="relative flex-1 sm:flex-none">
+
+                  <CalendarDays
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  />
+
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(event) =>
+                      setToDate(
+                        event.target.value
+                      )
+                    }
+                    className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-auto sm:pr-3"
+                    style={{
+                      colorScheme: "dark",
+                    }}
+                  />
+
+                </div>
+
               </div>
+
+              {/* APPLY */}
+
+              <button
+                type="button"
+                onClick={
+                  handleApplyDates
+                }
+                disabled={loading}
+                className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-4 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
+              >
+
+                <RefreshCw
+                  size={14}
+                  className={
+                    loading
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+
+                Apply
+
+              </button>
+
+            </div>
+
+          </div>
+
+          {/* =================================================
+              SELECTED DATE INFO
+          ================================================= */}
+
+          <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3">
+
+            <CalendarDays
+              size={15}
+              className="shrink-0 text-emerald-400"
+            />
+
+            <p className="text-[10px] text-slate-500 sm:text-xs">
+
+              Showing collections from{" "}
+
+              <span className="font-semibold text-white">
+                {formatDate(
+                  fromDate
+                )}
+              </span>
+
+              {" "}to{" "}
+
+              <span className="font-semibold text-white">
+                {formatDate(
+                  toDate
+                )}
+              </span>
+
+            </p>
+
+          </div>
+
+          {/* =================================================
+              ERROR
+          ================================================= */}
+
+          {error && (
+            <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-400 sm:flex-row sm:items-center sm:justify-between">
+
+              <span>
+                {error}
+              </span>
+
+              <button
+                type="button"
+                onClick={() =>
+                  fetchAreaCollections()
+                }
+                className="flex w-fit items-center gap-2 rounded-lg border border-red-500/20 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
+              >
+
+                <RefreshCw size={14} />
+
+                Try Again
+
+              </button>
+
+            </div>
+          )}
+
+          {/* =================================================
+              SUMMARY
+          ================================================= */}
+
+          <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-4">
+
+            {/* COLLECTIONS */}
+
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
+
+              <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
+
+                <CalendarDays size={14} />
+
+                Collections
+
+              </div>
+
+              <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
+
+                {summary.totalCollections}
+
+              </p>
+
+            </div>
+
+            {/* TEA */}
+
+            <div className="rounded-xl border border-emerald-500/10 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
+
+              <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
+
+                <Leaf
+                  size={14}
+                  className="text-emerald-400"
+                />
+
+                Tea Weight
+
+              </div>
+
+              <p className="mt-2 text-xl font-bold text-emerald-400 sm:text-2xl">
+
+                {formatNumber(
+                  summary.totalTeaWeightKg
+                )}{" "}
+
+                KG
+
+              </p>
+
+            </div>
+
+            {/* FACTORY */}
+
+            <div className="rounded-xl border border-blue-500/10 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
+
+              <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
+
+                <Factory
+                  size={14}
+                  className="text-blue-400"
+                />
+
+                Factory Weight
+
+              </div>
+
+              <p className="mt-2 text-xl font-bold text-blue-400 sm:text-2xl">
+
+                {formatNumber(
+                  summary.totalFactoryWeightKg
+                )}{" "}
+
+                KG
+
+              </p>
+
+            </div>
+
+            {/* DIFFERENCE */}
+
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
+
+              <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
+
+                <Scale size={14} />
+
+                Factory − Tea
+
+              </div>
+
+              <p
+                className={`mt-2 text-xl font-bold sm:text-2xl ${
+                  summary.totalDifferenceKg >
+                  0
+                    ? "text-cyan-400"
+                    : summary.totalDifferenceKg <
+                      0
+                    ? "text-red-400"
+                    : "text-slate-300"
+                }`}
+              >
+
+                {summary.totalDifferenceKg >
+                0
+                  ? "+"
+                  : ""}
+
+                {formatNumber(
+                  summary.totalDifferenceKg
+                )}{" "}
+
+                KG
+
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* =================================================
+              COLLECTIONS
+          ================================================= */}
+
+          <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#07140d] sm:rounded-2xl">
+
+            <div className="border-b border-slate-800 p-4 sm:p-5">
+
+              <h2 className="text-sm font-semibold text-white sm:text-base">
+                Collection Dates
+              </h2>
+
+              <p className="mt-1 text-[10px] text-slate-600 sm:text-xs">
+                Click a collection to see the suppliers who supplied tea on that date.
+              </p>
+
+            </div>
+
+            {/* =================================================
+                LOADING
+            ================================================= */}
+
+            {loading ? (
+
+              <div className="flex min-h-[280px] items-center justify-center">
+
+                <div className="text-center">
+
+                  <Loader2
+                    size={30}
+                    className="mx-auto animate-spin text-emerald-500"
+                  />
+
+                  <p className="mt-3 text-xs text-slate-600">
+                    Loading collections...
+                  </p>
+
+                </div>
+
+              </div>
+
+            ) : collections.length === 0 ? (
+
+              /* =================================================
+                 EMPTY
+              ================================================= */
+
+              <div className="flex min-h-[280px] items-center justify-center p-6 text-center">
+
+                <div>
+
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-slate-700">
+
+                    <Leaf size={22} />
+
+                  </div>
+
+                  <p className="mt-4 text-sm font-medium text-slate-500">
+                    No collections found
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-700">
+                    No tea collection was recorded for this date range.
+                  </p>
+
+                </div>
+
+              </div>
+
+            ) : (
+
+              <>
+
+                {/* =================================================
+                    DESKTOP
+                ================================================= */}
+
+                <div className="hidden overflow-x-auto md:block">
+
+                  <table className="w-full min-w-[800px]">
+
+                    <thead>
+
+                      <tr className="border-b border-slate-800 text-left">
+
+                        <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                          Date
+                        </th>
+
+                        <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                          Tea Weight
+                        </th>
+
+                        <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                          Factory Weight
+                        </th>
+
+                        <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                          Difference
+                        </th>
+
+                        <th className="px-5 py-4 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                          Action
+                        </th>
+
+                      </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                      {collections.map(
+                        (collection) => {
+
+                          const difference =
+                            Number(
+                              collection.factoryWeightKg ||
+                                0
+                            ) -
+                            Number(
+                              collection.totalKg ||
+                                0
+                            );
+
+                          return (
+
+                            <tr
+                              key={
+                                collection.collectionId
+                              }
+                              className="border-b border-slate-800/70 transition hover:bg-slate-900/30"
+                            >
+
+                              <td className="px-5 py-4">
+
+                                <div className="flex items-center gap-3">
+
+                                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+
+                                    <CalendarDays
+                                      size={16}
+                                    />
+
+                                  </div>
+
+                                  <div>
+
+                                    <p className="text-sm font-medium text-white">
+
+                                      {formatDate(
+                                        collection.date
+                                      )}
+
+                                    </p>
+
+                                    <p className="mt-0.5 text-[10px] text-slate-600">
+
+                                      {
+                                        collection.collectionId
+                                      }
+
+                                    </p>
+
+                                  </div>
+
+                                </div>
+
+                              </td>
+
+                              <td className="px-5 py-4 text-sm font-semibold text-emerald-400">
+
+                                {formatNumber(
+                                  collection.totalKg
+                                )}{" "}
+                                KG
+
+                              </td>
+
+                              <td className="px-5 py-4 text-sm font-semibold text-blue-400">
+
+                                {formatNumber(
+                                  collection.factoryWeightKg
+                                )}{" "}
+                                KG
+
+                              </td>
+
+                              <td
+                                className={`px-5 py-4 text-sm font-semibold ${
+                                  difference > 0
+                                    ? "text-cyan-400"
+                                    : difference < 0
+                                    ? "text-red-400"
+                                    : "text-slate-400"
+                                }`}
+                              >
+
+                                {difference > 0
+                                  ? "+"
+                                  : ""}
+
+                                {formatNumber(
+                                  difference
+                                )}{" "}
+                                KG
+
+                              </td>
+
+                              <td className="px-5 py-4 text-right">
+
+                                <Link
+                                  href={`/collections/${encodeURIComponent(
+                                    collection.collectionId
+                                  )}`}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-emerald-500/30 hover:text-emerald-400"
+                                >
+
+                                  <Users
+                                    size={14}
+                                  />
+
+                                  Suppliers
+
+                                  <ArrowRight
+                                    size={14}
+                                  />
+
+                                </Link>
+
+                              </td>
+
+                            </tr>
+
+                          );
+                        }
+                      )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+                {/* =================================================
+                    MOBILE
+                ================================================= */}
+
+                <div className="divide-y divide-slate-800 md:hidden">
+
+                  {collections.map(
+                    (collection) => {
+
+                      const difference =
+                        Number(
+                          collection.factoryWeightKg ||
+                            0
+                        ) -
+                        Number(
+                          collection.totalKg ||
+                            0
+                        );
+
+                      return (
+
+                        <Link
+                          key={
+                            collection.collectionId
+                          }
+                          href={`/collections/${encodeURIComponent(
+                            collection.collectionId
+                          )}`}
+                          className="block p-4 transition active:bg-slate-900/50 hover:bg-slate-900/30"
+                        >
+
+                          {/* DATE */}
+
+                          <div className="flex items-center justify-between gap-3">
+
+                            <div className="flex min-w-0 items-center gap-3">
+
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+
+                                <CalendarDays
+                                  size={17}
+                                />
+
+                              </div>
+
+                              <div className="min-w-0">
+
+                                <p className="truncate text-sm font-semibold text-white">
+
+                                  {formatDate(
+                                    collection.date
+                                  )}
+
+                                </p>
+
+                                <p className="mt-0.5 text-[10px] text-slate-600">
+
+                                  {
+                                    collection.collectionId
+                                  }
+
+                                </p>
+
+                              </div>
+
+                            </div>
+
+                            <ArrowRight
+                              size={16}
+                              className="shrink-0 text-slate-600"
+                            />
+
+                          </div>
+
+                          {/* WEIGHTS */}
+
+                          <div className="mt-4 grid grid-cols-3 gap-2">
+
+                            <div className="rounded-lg bg-slate-900/50 p-2.5">
+
+                              <p className="text-[9px] text-slate-600">
+                                Tea
+                              </p>
+
+                              <p className="mt-1 text-xs font-semibold text-emerald-400">
+
+                                {formatNumber(
+                                  collection.totalKg
+                                )}{" "}
+                                KG
+
+                              </p>
+
+                            </div>
+
+                            <div className="rounded-lg bg-slate-900/50 p-2.5">
+
+                              <p className="text-[9px] text-slate-600">
+                                Factory
+                              </p>
+
+                              <p className="mt-1 text-xs font-semibold text-blue-400">
+
+                                {formatNumber(
+                                  collection.factoryWeightKg
+                                )}{" "}
+                                KG
+
+                              </p>
+
+                            </div>
+
+                            <div className="rounded-lg bg-slate-900/50 p-2.5">
+
+                              <p className="text-[9px] text-slate-600">
+                                Difference
+                              </p>
+
+                              <p
+                                className={`mt-1 text-xs font-semibold ${
+                                  difference > 0
+                                    ? "text-cyan-400"
+                                    : difference < 0
+                                    ? "text-red-400"
+                                    : "text-slate-400"
+                                }`}
+                              >
+
+                                {difference > 0
+                                  ? "+"
+                                  : ""}
+
+                                {formatNumber(
+                                  difference
+                                )}{" "}
+                                KG
+
+                              </p>
+
+                            </div>
+
+                          </div>
+
+                          {/* SUPPLIER HINT */}
+
+                          <div className="mt-3 flex items-center justify-between text-[10px] text-slate-600">
+
+                            <span className="flex items-center gap-1.5">
+
+                              <Users size={13} />
+
+                              View suppliers for this collection
+
+                            </span>
+
+                            <span className="text-emerald-500">
+                              View →
+                            </span>
+
+                          </div>
+
+                        </Link>
+
+                      );
+                    }
+                  )}
+
+                </div>
+
+              </>
+
             )}
 
-            {/* =================================================
-                SUMMARY
-            ================================================= */}
-
-            <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-4">
-              {/* COLLECTIONS */}
-
-              <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
-                <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
-                  <CalendarDays size={14} />
-
-                  Collections
-                </div>
-
-                <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
-                  {summary.totalCollections}
-                </p>
-              </div>
-
-              {/* TEA */}
-
-              <div className="rounded-xl border border-emerald-500/10 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
-                <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
-                  <Leaf
-                    size={14}
-                    className="text-emerald-400"
-                  />
-
-                  Tea Weight
-                </div>
-
-                <p className="mt-2 text-xl font-bold text-emerald-400 sm:text-2xl">
-                  {formatNumber(
-                    summary.totalTeaWeightKg
-                  )}{" "}
-                  KG
-                </p>
-              </div>
-
-              {/* FACTORY */}
-
-              <div className="rounded-xl border border-blue-500/10 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
-                <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
-                  <Factory
-                    size={14}
-                    className="text-blue-400"
-                  />
-
-                  Factory Weight
-                </div>
-
-                <p className="mt-2 text-xl font-bold text-blue-400 sm:text-2xl">
-                  {formatNumber(
-                    summary.totalFactoryWeightKg
-                  )}{" "}
-                  KG
-                </p>
-              </div>
-
-              {/* DIFFERENCE */}
-
-              <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3 sm:rounded-2xl sm:p-5">
-                <div className="flex items-center gap-2 text-[9px] text-slate-500 sm:text-xs">
-                  <Scale size={14} />
-
-                  Factory − Tea
-                </div>
-
-                <p
-                  className={`mt-2 text-xl font-bold sm:text-2xl ${
-                    summary.totalDifferenceKg >
-                    0
-                      ? "text-emerald-400"
-                      : summary.totalDifferenceKg <
-                        0
-                      ? "text-red-400"
-                      : "text-slate-300"
-                  }`}
-                >
-                  {summary.totalDifferenceKg >
-                    0
-                    ? "+"
-                    : ""}
-                  {formatNumber(
-                    summary.totalDifferenceKg
-                  )}{" "}
-                  KG
-                </p>
-              </div>
-            </div>
-
-            {/* =================================================
-                COLLECTIONS
-            ================================================= */}
-
-            <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#07140d] sm:rounded-2xl">
-              <div className="border-b border-slate-800 p-4 sm:p-5">
-                <h2 className="text-sm font-semibold text-white sm:text-base">
-                  Collection Dates
-                </h2>
-
-                <p className="mt-1 text-[10px] text-slate-600 sm:text-xs">
-                  Click a collection to see the suppliers who
-                  supplied tea on that date.
-                </p>
-              </div>
-
-              {/* LOADING */}
-
-              {loading ? (
-                <div className="flex min-h-[280px] items-center justify-center">
-                  <div className="text-center">
-                    <Loader2
-                      size={30}
-                      className="mx-auto animate-spin text-emerald-500"
-                    />
-
-                    <p className="mt-3 text-xs text-slate-600">
-                      Loading collections...
-                    </p>
-                  </div>
-                </div>
-              ) : collections.length === 0 ? (
-                /* EMPTY */
-
-                <div className="flex min-h-[280px] items-center justify-center p-6 text-center">
-                  <div>
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-slate-700">
-                      <Leaf size={22} />
-                    </div>
-
-                    <p className="mt-4 text-sm font-medium text-slate-500">
-                      No collections found
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-700">
-                      No tea collection was recorded for this
-                      date range.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* =================================================
-                      DESKTOP
-                  ================================================= */}
-
-                  <div className="hidden overflow-x-auto md:block">
-                    <table className="w-full min-w-[800px]">
-                      <thead>
-                        <tr className="border-b border-slate-800 text-left">
-                          <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                            Date
-                          </th>
-
-                          <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                            Tea Weight
-                          </th>
-
-                          <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                            Factory Weight
-                          </th>
-
-                          <th className="px-5 py-4 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                            Difference
-                          </th>
-
-                          <th className="px-5 py-4 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {collections.map(
-                          (collection) => {
-                            const difference =
-                              Number(
-                                collection.factoryWeightKg ||
-                                  0
-                              ) -
-                              Number(
-                                collection.totalKg ||
-                                  0
-                              );
-
-                            return (
-                              <tr
-                                key={
-                                  collection.collectionId
-                                }
-                                className="border-b border-slate-800/70 transition hover:bg-slate-900/30"
-                              >
-                                <td className="px-5 py-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-                                      <CalendarDays
-                                        size={16}
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <p className="text-sm font-medium text-white">
-                                        {formatDate(
-                                          collection.date
-                                        )}
-                                      </p>
-
-                                      <p className="mt-0.5 text-[10px] text-slate-600">
-                                        {
-                                          collection.collectionId
-                                        }
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-
-                                <td className="px-5 py-4 text-sm font-semibold text-emerald-400">
-                                  {formatNumber(
-                                    collection.totalKg
-                                  )}{" "}
-                                  KG
-                                </td>
-
-                                <td className="px-5 py-4 text-sm font-semibold text-blue-400">
-                                  {formatNumber(
-                                    collection.factoryWeightKg
-                                  )}{" "}
-                                  KG
-                                </td>
-
-                                <td
-                                  className={`px-5 py-4 text-sm font-semibold ${
-                                    difference >
-                                    0
-                                      ? "text-emerald-400"
-                                      : difference <
-                                        0
-                                      ? "text-red-400"
-                                      : "text-slate-400"
-                                  }`}
-                                >
-                                  {difference >
-                                    0
-                                    ? "+"
-                                    : ""}
-                                  {formatNumber(
-                                    difference
-                                  )}{" "}
-                                  KG
-                                </td>
-
-                                <td className="px-5 py-4 text-right">
-                                  <Link
-                                    href={`/collections/${encodeURIComponent(
-                                      collection.collectionId
-                                    )}`}
-                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-emerald-500/30 hover:text-emerald-400"
-                                  >
-                                    <Users
-                                      size={14}
-                                    />
-
-                                    Suppliers
-
-                                    <ArrowRight
-                                      size={14}
-                                    />
-                                  </Link>
-                                </td>
-                              </tr>
-                            );
-                          }
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* =================================================
-                      MOBILE
-                  ================================================= */}
-
-                  <div className="divide-y divide-slate-800 md:hidden">
-                    {collections.map(
-                      (collection) => {
-                        const difference =
-                          Number(
-                            collection.factoryWeightKg ||
-                              0
-                          ) -
-                          Number(
-                            collection.totalKg ||
-                              0
-                          );
-
-                        return (
-                          <Link
-                            key={
-                              collection.collectionId
-                            }
-                            href={`/collections/${encodeURIComponent(
-                              collection.collectionId
-                            )}`}
-                            className="block p-4 transition active:bg-slate-900/50 hover:bg-slate-900/30"
-                          >
-                            {/* DATE */}
-
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex min-w-0 items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-                                  <CalendarDays
-                                    size={17}
-                                  />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-semibold text-white">
-                                    {formatDate(
-                                      collection.date
-                                    )}
-                                  </p>
-
-                                  <p className="mt-0.5 text-[10px] text-slate-600">
-                                    {
-                                      collection.collectionId
-                                    }
-                                  </p>
-                                </div>
-                              </div>
-
-                              <ArrowRight
-                                size={16}
-                                className="shrink-0 text-slate-600"
-                              />
-                            </div>
-
-                            {/* WEIGHTS */}
-
-                            <div className="mt-4 grid grid-cols-3 gap-2">
-                              <div className="rounded-lg bg-slate-900/50 p-2.5">
-                                <p className="text-[9px] text-slate-600">
-                                  Tea
-                                </p>
-
-                                <p className="mt-1 text-xs font-semibold text-emerald-400">
-                                  {formatNumber(
-                                    collection.totalKg
-                                  )}{" "}
-                                  KG
-                                </p>
-                              </div>
-
-                              <div className="rounded-lg bg-slate-900/50 p-2.5">
-                                <p className="text-[9px] text-slate-600">
-                                  Factory
-                                </p>
-
-                                <p className="mt-1 text-xs font-semibold text-blue-400">
-                                  {formatNumber(
-                                    collection.factoryWeightKg
-                                  )}{" "}
-                                  KG
-                                </p>
-                              </div>
-
-                              <div className="rounded-lg bg-slate-900/50 p-2.5">
-                                <p className="text-[9px] text-slate-600">
-                                  Difference
-                                </p>
-
-                                <p
-                                  className={`mt-1 text-xs font-semibold ${
-                                    difference >
-                                    0
-                                      ? "text-emerald-400"
-                                      : difference <
-                                        0
-                                      ? "text-red-400"
-                                      : "text-slate-400"
-                                  }`}
-                                >
-                                  {difference >
-                                    0
-                                    ? "+"
-                                    : ""}
-                                  {formatNumber(
-                                    difference
-                                  )}{" "}
-                                  KG
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* SUPPLIER HINT */}
-
-                            <div className="mt-3 flex items-center justify-between text-[10px] text-slate-600">
-                              <span className="flex items-center gap-1.5">
-                                <Users size={13} />
-
-                                View suppliers for this
-                                collection
-                              </span>
-
-                              <span className="text-emerald-500">
-                                View →
-                              </span>
-                            </div>
-                          </Link>
-                        );
-                      }
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
           </div>
-        </main>
-      </div>
+
+        </div>
+
+      </main>
+
     </div>
   );
 }

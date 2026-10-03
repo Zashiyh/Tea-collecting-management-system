@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   Trash2,
   Eye,
   Scale,
+  X,
 } from "lucide-react";
 
 import CollectionModal from "@/components/collections/CollectionModal";
@@ -31,6 +32,17 @@ interface CollectionsResponse {
   success: boolean;
   message?: string;
   collections: Collection[];
+}
+
+interface Area {
+  areaId: string;
+  name: string;
+}
+
+interface AreasResponse {
+  success: boolean;
+  message?: string;
+  areas?: Area[];
 }
 
 function formatNumber(value: number) {
@@ -56,108 +68,89 @@ function formatDate(dateValue: string) {
   }).format(date);
 }
 
+function getSriLankaDate(dateValue: string) {
+  if (!dateValue) return "";
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateValue.slice(0, 10);
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 export default function CollectionsPage() {
-  const [collections, setCollections] =
-    useState<Collection[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
+  const [areasLoading, setAreasLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
+  const [areasError, setAreasError] = useState("");
 
-  const [showAddModal, setShowAddModal] =
-    useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const [editingCollection, setEditingCollection] =
     useState<Collection | null>(null);
+
+  // Dashboard-style filters
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedAreaId, setSelectedAreaId] = useState("");
 
   async function loadCollections() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        "/api/collections",
-        {
-          cache: "no-store",
-        }
-      );
+      const response = await fetch("/api/collections", {
+        cache: "no-store",
+      });
 
-      const text =
-        await response.text();
+      const text = await response.text();
 
       let data: CollectionsResponse;
 
       try {
         data = JSON.parse(text);
       } catch {
-        throw new Error(
-          "Invalid server response"
-        );
+        throw new Error("Invalid server response");
       }
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to load collections"
+          data.message || "Failed to load collections"
         );
       }
 
-      /*
-       * IMPORTANT
-       *
-       * Always calculate Difference here again.
-       *
-       * Difference =
-       * Factory Weight - Tea Weight
-       *
-       * Example:
-       * Factory 50,000
-       * Tea     40,000
-       * Difference +10,000
-       *
-       * Example:
-       * Factory 40,000
-       * Tea     50,000
-       * Difference -10,000
-       */
-      const fixedCollections =
-        (data.collections || []).map(
-          (collection) => {
-            const teaWeight =
-              Number(
-                collection.totalKg || 0
-              );
+      const fixedCollections = (data.collections || []).map(
+        (collection) => {
+          const teaWeight = Number(collection.totalKg || 0);
 
-            const factoryWeight =
-              Number(
-                collection.factoryWeightKg ||
-                  0
-              );
+          const factoryWeight = Number(
+            collection.factoryWeightKg || 0
+          );
 
-            const difference =
-              Number(
-                (
-                  factoryWeight -
-                  teaWeight
-                ).toFixed(2)
-              );
+          const difference = Number(
+            (factoryWeight - teaWeight).toFixed(2)
+          );
 
-            return {
-              ...collection,
-              totalKg: teaWeight,
-              factoryWeightKg:
-                factoryWeight,
-              differenceKg:
-                difference,
-            };
-          }
-        );
-
-      setCollections(
-        fixedCollections
+          return {
+            ...collection,
+            totalKg: teaWeight,
+            factoryWeightKg: factoryWeight,
+            differenceKg: difference,
+          };
+        }
       );
+
+      setCollections(fixedCollections);
     } catch (error) {
       console.error(error);
 
@@ -173,8 +166,50 @@ export default function CollectionsPage() {
     }
   }
 
+  async function loadAreas() {
+    try {
+      setAreasLoading(true);
+      setAreasError("");
+
+      const response = await fetch("/api/areas", {
+        cache: "no-store",
+      });
+
+      const text = await response.text();
+
+      let data: AreasResponse;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid areas response");
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Failed to load areas"
+        );
+      }
+
+      setAreas(data.areas || []);
+    } catch (error) {
+      console.error(error);
+
+      setAreasError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load areas"
+      );
+
+      setAreas([]);
+    } finally {
+      setAreasLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadCollections();
+    loadAreas();
   }, []);
 
   function handleCreated() {
@@ -187,31 +222,24 @@ export default function CollectionsPage() {
     loadCollections();
   }
 
-  async function handleDelete(
-    collectionId: string
-  ) {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this collection?"
-      );
+  async function handleDelete(collectionId: string) {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this collection?"
+    );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
-      const response =
-        await fetch(
-          `/api/collections/${encodeURIComponent(
-            collectionId
-          )}`,
-          {
-            method: "DELETE",
-          }
-        );
+      const response = await fetch(
+        `/api/collections/${encodeURIComponent(
+          collectionId
+        )}`,
+        {
+          method: "DELETE",
+        }
+      );
 
-      const text =
-        await response.text();
+      const text = await response.text();
 
       let data: {
         success?: boolean;
@@ -221,18 +249,12 @@ export default function CollectionsPage() {
       try {
         data = JSON.parse(text);
       } catch {
-        throw new Error(
-          "Invalid server response"
-        );
+        throw new Error("Invalid server response");
       }
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to delete collection"
+          data.message || "Failed to delete collection"
         );
       }
 
@@ -248,49 +270,65 @@ export default function CollectionsPage() {
     }
   }
 
-  const totalTeaWeight =
-    collections.reduce(
-      (total, collection) =>
-        total +
-        Number(
-          collection.totalKg || 0
-        ),
-      0
-    );
-
-  const totalFactoryWeight =
-    collections.reduce(
-      (total, collection) =>
-        total +
-        Number(
-          collection.factoryWeightKg ||
-            0
-        ),
-      0
-    );
-
   /*
-   * IMPORTANT
+   * FILTER
    *
-   * Do NOT use:
+   * Date + Area are combined.
    *
-   * totalTeaWeight - totalFactoryWeight
+   * Date only:
+   *   -> selected day's collections
    *
-   * Correct:
+   * Area only:
+   *   -> selected area's all collections
    *
-   * totalFactoryWeight - totalTeaWeight
+   * Date + Area:
+   *   -> selected area on selected date
+   *
+   * Both empty:
+   *   -> all collections
    */
-  const totalDifference =
-    Number(
-      (
-        totalFactoryWeight -
-        totalTeaWeight
-      ).toFixed(2)
-    );
+  const filteredCollections = useMemo(() => {
+    return collections.filter((collection) => {
+      const matchesDate =
+        !selectedDate ||
+        getSriLankaDate(collection.date) === selectedDate;
+
+      const matchesArea =
+        !selectedAreaId ||
+        collection.areaId === selectedAreaId;
+
+      return matchesDate && matchesArea;
+    });
+  }, [collections, selectedDate, selectedAreaId]);
+
+  const totalTeaWeight = filteredCollections.reduce(
+    (total, collection) =>
+      total + Number(collection.totalKg || 0),
+    0
+  );
+
+  const totalFactoryWeight = filteredCollections.reduce(
+    (total, collection) =>
+      total + Number(collection.factoryWeightKg || 0),
+    0
+  );
+
+  const totalDifference = Number(
+    (totalFactoryWeight - totalTeaWeight).toFixed(2)
+  );
+
+  const hasActiveFilter =
+    selectedDate !== "" || selectedAreaId !== "";
+
+  function clearFilters() {
+    setSelectedDate("");
+    setSelectedAreaId("");
+  }
 
   return (
     <div className="min-h-screen bg-[#07130d] text-white">
       <div className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
+
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -314,13 +352,16 @@ export default function CollectionsPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={loadCollections}
+              onClick={() => {
+                loadCollections();
+                loadAreas();
+              }}
               className="inline-flex items-center gap-2 rounded-xl border border-[#284635] bg-[#102218] px-4 py-3 text-sm font-medium text-gray-200 transition hover:bg-[#16301f]"
             >
               <RefreshCw
                 size={17}
                 className={
-                  loading
+                  loading || areasLoading
                     ? "animate-spin"
                     : ""
                 }
@@ -330,9 +371,7 @@ export default function CollectionsPage() {
 
             <button
               type="button"
-              onClick={() =>
-                setShowAddModal(true)
-              }
+              onClick={() => setShowAddModal(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-[#1f8f4d] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#25a657]"
             >
               <Plus size={18} />
@@ -348,15 +387,99 @@ export default function CollectionsPage() {
           </div>
         )}
 
+        {/* Dashboard Style Filters */}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+
+          {/* Date */}
+          <div>
+            <label
+              htmlFor="collection-date"
+              className="mb-1.5 block text-xs font-medium text-gray-500"
+            >
+              Date
+            </label>
+
+            <input
+              id="collection-date"
+              type="date"
+              value={selectedDate}
+              onChange={(event) =>
+                setSelectedDate(event.target.value)
+              }
+              className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[190px]"
+            />
+          </div>
+
+          {/* Area */}
+          <div>
+            <label
+              htmlFor="collection-area"
+              className="mb-1.5 block text-xs font-medium text-gray-500"
+            >
+              Area
+            </label>
+
+            <select
+              id="collection-area"
+              value={selectedAreaId}
+              onChange={(event) =>
+                setSelectedAreaId(event.target.value)
+              }
+              className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[220px]"
+            >
+              <option value="">
+                All Areas
+              </option>
+
+              {areas.map((area) => (
+                <option
+                  key={area.areaId}
+                  value={area.areaId}
+                >
+                  {area.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear */}
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#294936] bg-[#112519] px-4 text-sm text-gray-300 transition hover:bg-[#183421]"
+            >
+              <X size={16} />
+              Clear
+            </button>
+          )}
+
+          {/* Result */}
+          <div className="flex h-11 items-center text-sm text-gray-500 sm:ml-2">
+            Showing{" "}
+            <span className="ml-1 font-semibold text-green-400">
+              {filteredCollections.length}
+            </span>
+
+            <span className="ml-1">
+              collection
+              {filteredCollections.length === 1
+                ? ""
+                : "s"}
+            </span>
+          </div>
+        </div>
+
         {/* Summary */}
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+
           <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
             <p className="text-sm text-gray-400">
               Collections
             </p>
 
             <p className="mt-2 text-2xl font-bold">
-              {collections.length}
+              {filteredCollections.length}
             </p>
           </div>
 
@@ -366,9 +489,7 @@ export default function CollectionsPage() {
             </p>
 
             <p className="mt-2 text-2xl font-bold">
-              {formatNumber(
-                totalTeaWeight
-              )}{" "}
+              {formatNumber(totalTeaWeight)}{" "}
               <span className="text-sm font-normal text-gray-400">
                 kg
               </span>
@@ -381,9 +502,7 @@ export default function CollectionsPage() {
             </p>
 
             <p className="mt-2 text-2xl font-bold">
-              {formatNumber(
-                totalFactoryWeight
-              )}{" "}
+              {formatNumber(totalFactoryWeight)}{" "}
               <span className="text-sm font-normal text-gray-400">
                 kg
               </span>
@@ -404,12 +523,8 @@ export default function CollectionsPage() {
                     : "text-green-400"
               }`}
             >
-              {totalDifference > 0
-                ? "+"
-                : ""}
-              {formatNumber(
-                totalDifference
-              )}{" "}
+              {totalDifference > 0 ? "+" : ""}
+              {formatNumber(totalDifference)}{" "}
               <span className="text-sm font-normal text-gray-400">
                 kg
               </span>
@@ -430,7 +545,7 @@ export default function CollectionsPage() {
 
         {/* Empty */}
         {!loading &&
-          collections.length === 0 &&
+          filteredCollections.length === 0 &&
           !error && (
             <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center">
               <Scale
@@ -443,47 +558,48 @@ export default function CollectionsPage() {
               </h2>
 
               <p className="mt-2 text-sm text-gray-500">
-                Add your first tea collection.
+                {hasActiveFilter
+                  ? "No collections match the selected filters."
+                  : "Add your first tea collection."}
               </p>
+
+              {hasActiveFilter && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#1f8f4d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#25a657]"
+                >
+                  <X size={16} />
+                  Clear Filters
+                </button>
+              )}
             </div>
           )}
 
         {/* Collections */}
         {!loading &&
-          collections.length > 0 && (
+          filteredCollections.length > 0 && (
             <div className="space-y-4">
-              {collections.map(
+              {filteredCollections.map(
                 (collection) => {
-                  const teaWeight =
-                    Number(
-                      collection.totalKg ||
-                        0
-                    );
+                  const teaWeight = Number(
+                    collection.totalKg || 0
+                  );
 
-                  const factoryWeight =
-                    Number(
-                      collection.factoryWeightKg ||
-                        0
-                    );
+                  const factoryWeight = Number(
+                    collection.factoryWeightKg || 0
+                  );
 
-                  /*
-                   * IMPORTANT:
-                   *
-                   * Factory - Tea
-                   */
-                  const difference =
-                    Number(
-                      (
-                        factoryWeight -
-                        teaWeight
-                      ).toFixed(2)
-                    );
+                  const difference = Number(
+                    (
+                      factoryWeight -
+                      teaWeight
+                    ).toFixed(2)
+                  );
 
                   return (
                     <div
-                      key={
-                        collection.collectionId
-                      }
+                      key={collection.collectionId}
                       className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5 transition hover:border-[#31563f]"
                     >
                       {/* Top */}
@@ -491,22 +607,16 @@ export default function CollectionsPage() {
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
                             <h2 className="text-lg font-semibold">
-                              {
-                                collection.areaName
-                              }
+                              {collection.areaName}
                             </h2>
 
                             <span className="rounded-lg bg-[#173421] px-2.5 py-1 text-xs text-green-300">
-                              {
-                                collection.collectionId
-                              }
+                              {collection.collectionId}
                             </span>
                           </div>
 
                           <p className="mt-1 text-sm text-gray-500">
-                            {formatDate(
-                              collection.date
-                            )}
+                            {formatDate(collection.date)}
                           </p>
                         </div>
 
@@ -517,9 +627,7 @@ export default function CollectionsPage() {
                             )}`}
                             className="inline-flex items-center gap-2 rounded-lg border border-[#294936] bg-[#112519] px-3 py-2 text-sm text-gray-200 transition hover:bg-[#183421]"
                           >
-                            <Eye
-                              size={16}
-                            />
+                            <Eye size={16} />
                             View Collection
                           </Link>
 
@@ -532,9 +640,7 @@ export default function CollectionsPage() {
                             }
                             className="inline-flex items-center gap-2 rounded-lg border border-[#294936] bg-[#112519] px-3 py-2 text-sm text-gray-200 transition hover:bg-[#183421]"
                           >
-                            <Pencil
-                              size={16}
-                            />
+                            <Pencil size={16} />
                             Edit
                           </button>
 
@@ -547,9 +653,7 @@ export default function CollectionsPage() {
                             }
                             className="inline-flex items-center gap-2 rounded-lg border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-300 transition hover:bg-red-950/40"
                           >
-                            <Trash2
-                              size={16}
-                            />
+                            <Trash2 size={16} />
                             Delete
                           </button>
                         </div>
@@ -557,6 +661,7 @@ export default function CollectionsPage() {
 
                       {/* Weights */}
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
                         {/* Tea */}
                         <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
                           <p className="text-xs text-gray-500">
@@ -564,9 +669,7 @@ export default function CollectionsPage() {
                           </p>
 
                           <p className="mt-2 text-xl font-bold">
-                            {formatNumber(
-                              teaWeight
-                            )}{" "}
+                            {formatNumber(teaWeight)}{" "}
                             <span className="text-sm font-normal text-gray-500">
                               kg
                             </span>
@@ -580,9 +683,7 @@ export default function CollectionsPage() {
                           </p>
 
                           <p className="mt-2 text-xl font-bold">
-                            {formatNumber(
-                              factoryWeight
-                            )}{" "}
+                            {formatNumber(factoryWeight)}{" "}
                             <span className="text-sm font-normal text-gray-500">
                               kg
                             </span>
@@ -616,8 +717,7 @@ export default function CollectionsPage() {
                           </p>
 
                           <p className="mt-1 text-xs text-gray-600">
-                            Factory weight − tea
-                            weight
+                            Factory weight − tea weight
                           </p>
                         </div>
                       </div>
@@ -630,9 +730,7 @@ export default function CollectionsPage() {
                           </p>
 
                           <p className="mt-1 text-sm text-gray-300">
-                            {
-                              collection.notes
-                            }
+                            {collection.notes}
                           </p>
                         </div>
                       )}
@@ -647,9 +745,7 @@ export default function CollectionsPage() {
       {/* Add */}
       <CollectionModal
         isOpen={showAddModal}
-        onClose={() =>
-          setShowAddModal(false)
-        }
+        onClose={() => setShowAddModal(false)}
         onCreated={handleCreated}
       />
 
@@ -657,15 +753,11 @@ export default function CollectionsPage() {
       {editingCollection && (
         <EditCollectionModal
           isOpen={true}
-          collection={
-            editingCollection
-          }
+          collection={editingCollection}
           onClose={() =>
             setEditingCollection(null)
           }
-          onUpdated={
-            handleEdited
-          }
+          onUpdated={handleEdited}
         />
       )}
     </div>
