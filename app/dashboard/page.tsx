@@ -240,25 +240,12 @@ export default function DashboardPage() {
   const areas = data?.areas || [];
 
   /* =======================================================
-     MAX AREA WEIGHT
+     FIXED BAR SCALE
      
-     Used ONLY for today's bars.
+     1000 KG = 100% FULL
   ======================================================= */
 
-  const maxWeight =
-    areas.length > 0
-      ? Math.max(
-          ...areas.flatMap((area) => [
-            Number(
-              area.todayTeaWeightKg || 0
-            ),
-            Number(
-              area.todayFactoryWeightKg || 0
-            ),
-          ]),
-          1
-        )
-      : 1;
+  const maxWeight = 1000;
 
   /* =======================================================
      PAGE
@@ -296,27 +283,25 @@ export default function DashboardPage() {
                 HEADER
             ================================================= */}
 
-            <div className="mb-5 flex flex-col gap-4 sm:mb-6 lg:mb-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="mb-5 flex flex-col gap-4 lg:mb-6 lg:flex-row lg:items-center lg:justify-between">
 
-              <div>
+              <div className="min-w-0">
 
-                <p className="mb-1 text-[10px] font-semibold tracking-widest text-emerald-400 sm:text-xs">
-                  COOROONDOOWATTE TEA FACTORY
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
+                  Cooroonduwatte Tea Factory
                 </p>
 
-                <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-3xl">
+                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-4xl">
                   Green Leaf Details
                 </h1>
 
-                <p className="mt-1 text-[11px] text-slate-500 sm:text-sm">
+                <p className="mt-1 max-w-xl text-xs leading-5 text-slate-600 sm:text-sm">
                   Daily and cumulative tea collection overview.
                 </p>
 
               </div>
 
-              {/* =================================================
-                  DATE
-              ================================================= */}
+              {/* DATE + REFRESH */}
 
               <div className="flex w-full items-center gap-2 sm:w-auto">
 
@@ -324,7 +309,7 @@ export default function DashboardPage() {
 
                   <CalendarDays
                     size={16}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
                   />
 
                   <input
@@ -335,15 +320,13 @@ export default function DashboardPage() {
                         event.target.value
                       )
                     }
-                    className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none transition focus:border-emerald-500 sm:h-11 sm:w-auto sm:pl-10 sm:pr-4 sm:text-sm"
+                    className="h-10 w-full rounded-lg border border-slate-800 bg-[#07140d] pl-9 pr-2 text-sm text-white outline-none transition focus:border-emerald-500 sm:h-10 sm:w-[170px] sm:pr-3"
                     style={{
                       colorScheme: "dark",
                     }}
                   />
 
                 </div>
-
-                {/* REFRESH */}
 
                 <button
                   type="button"
@@ -353,11 +336,11 @@ export default function DashboardPage() {
                     )
                   }
                   disabled={loading}
-                  className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:gap-2 sm:px-4 sm:text-sm"
+                  className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-800 bg-[#07140d] px-3.5 text-sm font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
 
                   <RefreshCw
-                    size={14}
+                    size={15}
                     className={
                       loading
                         ? "animate-spin"
@@ -365,9 +348,7 @@ export default function DashboardPage() {
                     }
                   />
 
-                  <span>
-                    Refresh
-                  </span>
+                  Refresh
 
                 </button>
 
@@ -376,32 +357,31 @@ export default function DashboardPage() {
             </div>
 
             {/* =================================================
-                PERIOD
+                PERIOD BAR
             ================================================= */}
 
-            <div className="mb-5 flex flex-col gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+            <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
 
-              <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 items-center gap-3">
 
-                <CalendarDays
-                  size={16}
-                  className="shrink-0 text-emerald-400"
-                />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+                  <CalendarDays size={15} />
+                </div>
 
                 <div className="min-w-0">
 
-                  <p className="text-[10px] text-slate-600 sm:text-xs">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-600 sm:text-xs">
                     Collection Period
                   </p>
 
-                  <p className="truncate text-xs font-semibold text-white sm:text-sm">
+                  <p className="truncate text-sm font-semibold text-white sm:text-base">
 
                     {formatDateForDisplay(
                       data?.fromDate ||
                         "2026-10-01"
                     )}
 
-                    <span className="mx-1.5 text-slate-600">
+                    <span className="mx-1.5 text-slate-700">
                       →
                     </span>
 
@@ -416,7 +396,7 @@ export default function DashboardPage() {
 
               </div>
 
-              <p className="text-[10px] text-slate-600 sm:text-xs">
+              <p className="text-[10px] text-slate-700 sm:text-xs">
                 Cumulative total up to selected date
               </p>
 
@@ -427,7 +407,7 @@ export default function DashboardPage() {
             ================================================= */}
 
             {error && (
-              <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400 sm:flex-row sm:items-center sm:justify-between sm:p-4 sm:text-sm">
+              <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 text-sm text-red-400 sm:flex-row sm:items-center sm:justify-between">
 
                 <span>
                   {error}
@@ -454,16 +434,16 @@ export default function DashboardPage() {
 
             {loading && !data ? (
 
-              <div className="flex min-h-[400px] items-center justify-center">
+              <div className="flex min-h-[380px] items-center justify-center rounded-2xl border border-slate-800 bg-[#07140d]">
 
                 <div className="text-center">
 
                   <Loader2
-                    size={32}
+                    size={30}
                     className="mx-auto animate-spin text-emerald-500"
                   />
 
-                  <p className="mt-3 text-xs text-slate-500">
+                  <p className="mt-3 text-xs text-slate-600">
                     Loading factory data...
                   </p>
 
@@ -476,203 +456,806 @@ export default function DashboardPage() {
               <>
 
                 {/* =================================================
-                    TOP STAT CARDS
+                    MAIN SUMMARY
                 ================================================= */}
 
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
+                <section>
 
-                  {/* FIELD */}
+                  <div className="mb-3 flex items-center justify-between">
 
-                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-emerald-800 hover:shadow-lg hover:shadow-emerald-950/20 sm:rounded-2xl sm:p-4">
+                    <div>
 
-                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="text-base font-semibold text-white sm:text-lg">
+                        Today&apos;s Overview
+                      </h2>
 
-                      <div className="min-w-0 flex-1">
+                      <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
+                        Selected date performance
+                      </p>
 
-                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
+                    </div>
+
+                    <span className="rounded-md bg-slate-900 px-2.5 py-1 text-[10px] text-slate-600 sm:text-xs">
+                      {formatDateForDisplay(
+                        data?.date ||
+                          selectedDate
+                      )}
+                    </span>
+
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+
+                    {/* FIELD */}
+
+                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-emerald-500/20 sm:p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-xs text-slate-500">
                           Field Weight
-                        </p>
+                        </span>
 
-                        {/* TODAY */}
-
-                        <p className="mt-1 text-base font-bold leading-tight text-white sm:text-xl">
-
-                          {formatNumber(
-                            today?.teaWeightKg ||
-                              0
-                          )}{" "}
-
-                          <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
-                            KG
-                          </span>
-
-                        </p>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+                          <Leaf size={15} />
+                        </div>
 
                       </div>
 
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 sm:h-10 sm:w-10">
+                      <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
 
-                        <Leaf
-                          size={16}
-                          className="sm:h-5 sm:w-5"
-                        />
+                        {formatNumber(
+                          today?.teaWeightKg ||
+                            0
+                        )}
+
+                        <span className="ml-1 text-[10px] font-medium text-slate-600 sm:text-xs">
+                          KG
+                        </span>
+
+                      </p>
+
+                      <div className="mt-2 border-t border-slate-800 pt-2">
+
+                        <span className="text-[10px] text-slate-700 sm:text-xs">
+                          Period total
+                        </span>
+
+                        <p className="mt-0.5 text-xs font-medium text-emerald-400/80 sm:text-sm">
+
+                          {formatNumber(
+                            summary?.totalTeaWeightKg ||
+                              0
+                          )}{" "}
+                          KG
+
+                        </p>
 
                       </div>
 
                     </div>
 
-                    {/* CUMULATIVE */}
+                    {/* FACTORY */}
 
-                    <p className="mt-2 truncate text-[8px] text-slate-600 sm:text-[10px]">
+                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-blue-500/20 sm:p-4">
 
-                      Total:{" "}
+                      <div className="flex items-center justify-between">
 
-                      <span className="font-medium text-emerald-400/80">
-
-                        {formatNumber(
-                          summary?.totalTeaWeightKg ||
-                            0
-                        )}{" "}
-                        KG
-
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                  {/* FACTORY */}
-
-                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-blue-800 hover:shadow-lg hover:shadow-blue-950/20 sm:rounded-2xl sm:p-4">
-
-                    <div className="flex items-center justify-between gap-2">
-
-                      <div className="min-w-0 flex-1">
-
-                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
+                        <span className="text-xs text-slate-500">
                           Factory Weight
-                        </p>
+                        </span>
 
-                        <p className="mt-1 text-base font-bold leading-tight text-white sm:text-xl">
-
-                          {formatNumber(
-                            today?.factoryWeightKg ||
-                              0
-                          )}{" "}
-
-                          <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
-                            KG
-                          </span>
-
-                        </p>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                          <Factory size={15} />
+                        </div>
 
                       </div>
 
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 sm:h-10 sm:w-10">
+                      <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
 
-                        <Factory
-                          size={16}
-                          className="sm:h-5 sm:w-5"
-                        />
+                        {formatNumber(
+                          today?.factoryWeightKg ||
+                            0
+                        )}
+
+                        <span className="ml-1 text-[10px] font-medium text-slate-600 sm:text-xs">
+                          KG
+                        </span>
+
+                      </p>
+
+                      <div className="mt-2 border-t border-slate-800 pt-2">
+
+                        <span className="text-[10px] text-slate-700 sm:text-xs">
+                          Period total
+                        </span>
+
+                        <p className="mt-0.5 text-xs font-medium text-blue-400/80 sm:text-sm">
+
+                          {formatNumber(
+                            summary?.totalFactoryWeightKg ||
+                              0
+                          )}{" "}
+                          KG
+
+                        </p>
 
                       </div>
 
                     </div>
 
-                    <p className="mt-2 truncate text-[8px] text-slate-600 sm:text-[10px]">
+                    {/* DIFFERENCE */}
 
-                      Total:{" "}
+                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-cyan-500/20 sm:p-4">
 
-                      <span className="font-medium text-blue-400/80">
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-xs text-slate-500">
+                          Weight Difference
+                        </span>
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                          <Scale size={15} />
+                        </div>
+
+                      </div>
+
+                      <p
+                        className={`mt-2 text-xl font-bold sm:text-2xl ${
+                          (
+                            today?.differenceKg ||
+                            0
+                          ) > 0
+                            ? "text-cyan-400"
+                            : (
+                                  today?.differenceKg ||
+                                  0
+                                ) < 0
+                              ? "text-red-400"
+                              : "text-emerald-400"
+                        }`}
+                      >
+
+                        {(
+                          today?.differenceKg ||
+                          0
+                        ) > 0
+                          ? "+"
+                          : ""}
 
                         {formatNumber(
-                          summary?.totalFactoryWeightKg ||
+                          today?.differenceKg ||
                             0
-                        )}{" "}
-                        KG
+                        )}
 
-                      </span>
+                        <span className="ml-1 text-[10px] font-medium text-slate-600 sm:text-xs">
+                          KG
+                        </span>
 
-                    </p>
+                      </p>
 
-                  </div>
+                      <div className="mt-2 border-t border-slate-800 pt-2">
 
-                  {/* DIFFERENCE */}
-
-                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-amber-800 hover:shadow-lg hover:shadow-amber-950/20 sm:rounded-2xl sm:p-4">
-
-                    <div className="flex items-center justify-between gap-2">
-
-                      <div className="min-w-0 flex-1">
-
-                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
-                          Weight Difference
-                        </p>
+                        <span className="text-[10px] text-slate-700 sm:text-xs">
+                          Period total
+                        </span>
 
                         <p
-                          className={`mt-1 text-base font-bold leading-tight sm:text-xl ${
+                          className={`mt-0.5 text-xs font-medium sm:text-sm ${
                             (
-                              today?.differenceKg ||
+                              summary?.totalDifferenceKg ||
                               0
                             ) > 0
-                              ? "text-cyan-400"
+                              ? "text-cyan-400/80"
                               : (
-                                    today?.differenceKg ||
+                                    summary?.totalDifferenceKg ||
                                     0
                                   ) < 0
-                                ? "text-red-400"
-                                : "text-emerald-400"
+                                ? "text-red-400/80"
+                                : "text-emerald-400/80"
                           }`}
                         >
 
                           {(
-                            today?.differenceKg ||
+                            summary?.totalDifferenceKg ||
                             0
                           ) > 0
                             ? "+"
                             : ""}
 
                           {formatNumber(
-                            today?.differenceKg ||
+                            summary?.totalDifferenceKg ||
                               0
                           )}{" "}
-
-                          <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
-                            KG
-                          </span>
+                          KG
 
                         </p>
 
                       </div>
 
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 sm:h-10 sm:w-10">
+                    </div>
 
-                        <Scale
-                          size={16}
-                          className="sm:h-5 sm:w-5"
-                        />
+                    {/* AREAS */}
+
+                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-purple-500/20 sm:p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-xs text-slate-500">
+                          Areas
+                        </span>
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400">
+                          <Users size={15} />
+                        </div>
+
+                      </div>
+
+                      <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
+
+                        {summary?.collectedAreas ||
+                          0}
+
+                        <span className="ml-1 text-xs font-medium text-slate-600 sm:text-sm">
+                          /{" "}
+                          {summary?.totalAreas ||
+                            0}
+                        </span>
+
+                      </p>
+
+                      <div className="mt-2 border-t border-slate-800 pt-2">
+
+                        <span className="text-[10px] text-slate-700 sm:text-xs">
+                          Total collections
+                        </span>
+
+                        <p className="mt-0.5 text-xs font-medium text-purple-400/80 sm:text-sm">
+
+                          {formatNumber(
+                            summary?.totalCollections ||
+                              0
+                          )}
+
+                        </p>
 
                       </div>
 
                     </div>
 
-                    <p className="mt-2 truncate text-[8px] text-slate-600 sm:text-[10px]">
+                  </div>
 
-                      Total:{" "}
+                </section>
 
-                      <span
-                        className={`font-medium ${
+                {/* =================================================
+                    AREA COLLECTIONS
+                ================================================= */}
+
+                <section className="mt-5">
+
+                  <div className="mb-3 flex items-end justify-between">
+
+                    <div>
+
+                      <h2 className="text-base font-semibold text-white sm:text-lg">
+                        Area Collections
+                      </h2>
+
+                      <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
+                        Click an area to view its details
+                      </p>
+
+                    </div>
+
+                    <span className="text-[10px] text-slate-700 sm:text-xs">
+                      {areas.length} area
+                      {areas.length === 1
+                        ? ""
+                        : "s"}
+                    </span>
+
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#07140d]">
+
+                    {/* TABLE HEADER */}
+
+                    <div className="hidden grid-cols-[minmax(170px,1.2fr)_minmax(180px,1.8fr)_minmax(180px,1.8fr)_120px] items-center border-b border-slate-800 bg-[#0a1910] px-4 py-3 md:grid lg:px-5">
+
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                        Area
+                      </span>
+
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                        Field Weight
+                      </span>
+
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                        Factory Weight
+                      </span>
+
+                      <span className="text-right text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                        Status
+                      </span>
+
+                    </div>
+
+                    {/* NO DATA */}
+
+                    {areas.length === 0 ? (
+
+                      <div className="flex min-h-[240px] items-center justify-center p-6 text-center">
+
+                        <div>
+
+                          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-slate-700">
+                            <Leaf size={20} />
+                          </div>
+
+                          <p className="mt-3 text-sm font-medium text-slate-500">
+                            No collection recorded
+                          </p>
+
+                          <p className="mt-1 text-xs text-slate-700">
+                            Select another date to view its collections.
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                    ) : (
+
+                      <div className="divide-y divide-slate-800/70">
+
+                        {areas.map((area) => {
+
+                          const todayField =
+                            Number(
+                              area.todayTeaWeightKg ||
+                                0
+                            );
+
+                          const todayFactory =
+                            Number(
+                              area.todayFactoryWeightKg ||
+                                0
+                            );
+
+                          const todayDifference =
+                            Number(
+                              area.todayDifferenceKg ||
+                                0
+                            );
+
+                          const todayCollections =
+                            Number(
+                              area.todayCollectionCount ||
+                                0
+                            );
+
+                          const status =
+                            getDifferenceStatus(
+                              todayDifference
+                            );
+
+                          const fieldWidth =
+                            todayField > 0
+                              ? Math.min(
+                                  100,
+                                  Math.max(
+                                    3,
+                                    (todayField /
+                                      maxWeight) *
+                                      100
+                                  )
+                                )
+                              : 0;
+
+                          const factoryWidth =
+                            todayFactory > 0
+                              ? Math.min(
+                                  100,
+                                  Math.max(
+                                    3,
+                                    (todayFactory /
+                                      maxWeight) *
+                                      100
+                                  )
+                                )
+                              : 0;
+
+                          return (
+
+                            <Link
+                              key={area.areaId}
+                              href={`/dashboard/areas/${encodeURIComponent(
+                                area.areaId
+                              )}?date=${encodeURIComponent(
+                                data?.date ||
+                                  selectedDate
+                              )}`}
+                              className="group block transition hover:bg-slate-900/25"
+                            >
+
+                              <div className="p-3.5 sm:p-4 lg:px-5">
+
+                                <div className="grid gap-4 md:grid-cols-[minmax(170px,1.2fr)_minmax(180px,1.8fr)_minmax(180px,1.8fr)_120px] md:items-center">
+
+                                  {/* AREA */}
+
+                                  <div className="flex min-w-0 items-center gap-3">
+
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-[10px] font-bold text-emerald-400 sm:h-10 sm:w-10 sm:text-xs">
+                                      <Leaf size={15} />
+                                    </div>
+
+                                    <div className="min-w-0">
+
+                                      <p className="truncate text-sm font-semibold text-white sm:text-base">
+                                        {area.areaName}
+                                      </p>
+
+                                      <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
+                                        {todayCollections} collection
+                                        {todayCollections !== 1
+                                          ? "s"
+                                          : ""}
+                                      </p>
+
+                                    </div>
+
+                                  </div>
+
+                                  {/* MOBILE */}
+
+                                  <div className="md:hidden">
+
+                                    <div className="mb-2 flex items-center justify-between">
+
+                                      <span className="text-[10px] font-medium text-slate-600">
+                                        Field Weight
+                                      </span>
+
+                                      <span className="text-[10px] font-semibold text-emerald-400">
+                                        {formatNumber(
+                                          todayField
+                                        )}{" "}
+                                        KG
+                                      </span>
+
+                                    </div>
+
+                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
+
+                                      <div
+                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                        style={{
+                                          width: `${fieldWidth}%`,
+                                        }}
+                                      />
+
+                                    </div>
+
+                                    <div className="mb-2 mt-3 flex items-center justify-between">
+
+                                      <span className="text-[10px] font-medium text-slate-600">
+                                        Factory Weight
+                                      </span>
+
+                                      <span className="text-[10px] font-semibold text-blue-400">
+                                        {formatNumber(
+                                          todayFactory
+                                        )}{" "}
+                                        KG
+                                      </span>
+
+                                    </div>
+
+                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
+
+                                      <div
+                                        className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                        style={{
+                                          width: `${factoryWidth}%`,
+                                        }}
+                                      />
+
+                                    </div>
+
+                                    <div className="mt-3 flex items-center justify-between">
+
+                                      <div>
+
+                                        <span className="text-[10px] text-slate-600">
+                                          Difference
+                                        </span>
+
+                                        <p
+                                          className={`mt-0.5 text-xs font-semibold ${
+                                            todayDifference >
+                                            0
+                                              ? "text-cyan-400"
+                                              : todayDifference <
+                                                  0
+                                                ? "text-red-400"
+                                                : "text-emerald-400"
+                                          }`}
+                                        >
+
+                                          {todayDifference >
+                                          0
+                                            ? "+"
+                                            : ""}
+
+                                          {formatNumber(
+                                            todayDifference
+                                          )}{" "}
+                                          KG
+
+                                        </p>
+
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+
+                                        <span
+                                          className={`rounded-md border px-2 py-1 text-[9px] font-medium ${status.className}`}
+                                        >
+                                          {status.label}
+                                        </span>
+
+                                        <ArrowRight
+                                          size={14}
+                                          className="text-slate-700 transition group-hover:translate-x-1 group-hover:text-emerald-400"
+                                        />
+
+                                      </div>
+
+                                    </div>
+
+                                  </div>
+
+                                  {/* DESKTOP FIELD */}
+
+                                  <div className="hidden md:block">
+
+                                    <div className="mb-1.5 flex items-center justify-between">
+
+                                      <span className="text-[10px] text-slate-600">
+                                        Field
+                                      </span>
+
+                                      <span className="text-xs font-semibold text-emerald-400">
+                                        {formatNumber(
+                                          todayField
+                                        )}{" "}
+                                        KG
+                                      </span>
+
+                                    </div>
+
+                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
+
+                                      <div
+                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                        style={{
+                                          width: `${fieldWidth}%`,
+                                        }}
+                                      />
+
+                                    </div>
+
+                                  </div>
+
+                                  {/* DESKTOP FACTORY */}
+
+                                  <div className="hidden md:block">
+
+                                    <div className="mb-1.5 flex items-center justify-between">
+
+                                      <span className="text-[10px] text-slate-600">
+                                        Factory
+                                      </span>
+
+                                      <span className="text-xs font-semibold text-blue-400">
+                                        {formatNumber(
+                                          todayFactory
+                                        )}{" "}
+                                        KG
+                                      </span>
+
+                                    </div>
+
+                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
+
+                                      <div
+                                        className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                        style={{
+                                          width: `${factoryWidth}%`,
+                                        }}
+                                      />
+
+                                    </div>
+
+                                  </div>
+
+                                  {/* DESKTOP STATUS */}
+
+                                  <div className="hidden items-end justify-end gap-2 md:flex">
+
+                                    <div className="text-right">
+
+                                      <p
+                                        className={`text-xs font-semibold ${
+                                          todayDifference >
+                                          0
+                                            ? "text-cyan-400"
+                                            : todayDifference <
+                                                0
+                                              ? "text-red-400"
+                                              : "text-emerald-400"
+                                        }`}
+                                      >
+
+                                        {todayDifference >
+                                        0
+                                          ? "+"
+                                          : ""}
+
+                                        {formatNumber(
+                                          todayDifference
+                                        )}{" "}
+                                        KG
+
+                                      </p>
+
+                                      <span
+                                        className={`mt-1 inline-flex rounded-md border px-2 py-1 text-[9px] font-medium ${status.className}`}
+                                      >
+                                        {status.label}
+                                      </span>
+
+                                    </div>
+
+                                    <ArrowRight
+                                      size={14}
+                                      className="text-slate-700 transition group-hover:translate-x-1 group-hover:text-emerald-400"
+                                    />
+
+                                  </div>
+
+                                </div>
+
+                              </div>
+
+                            </Link>
+
+                          );
+                        })}
+
+                      </div>
+
+                    )}
+
+                  </div>
+
+                </section>
+
+                {/* =================================================
+                    PERIOD TOTALS
+                ================================================= */}
+
+                <section className="mt-5">
+
+                  <div className="mb-3">
+
+                    <h2 className="text-base font-semibold text-white sm:text-lg">
+                      Period Totals
+                    </h2>
+
+                    <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
+                      Cumulative values from the displayed period
+                    </p>
+
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+
+                    {/* FIELD */}
+
+                    <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3.5 sm:p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-xs text-emerald-500/70">
+                          Total Field Weight
+                        </span>
+
+                        <Leaf
+                          size={15}
+                          className="text-emerald-500/70"
+                        />
+
+                      </div>
+
+                      <p className="mt-1.5 text-xl font-bold text-emerald-400 sm:text-2xl">
+
+                        {formatNumber(
+                          summary?.totalTeaWeightKg ||
+                            0
+                        )}
+
+                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                          KG
+                        </span>
+
+                      </p>
+
+                    </div>
+
+                    {/* FACTORY */}
+
+                    <div className="rounded-xl border border-blue-500/10 bg-blue-500/5 p-3.5 sm:p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-xs text-blue-400/70">
+                          Total Factory Weight
+                        </span>
+
+                        <Factory
+                          size={15}
+                          className="text-blue-400/70"
+                        />
+
+                      </div>
+
+                      <p className="mt-1.5 text-xl font-bold text-blue-400 sm:text-2xl">
+
+                        {formatNumber(
+                          summary?.totalFactoryWeightKg ||
+                            0
+                        )}
+
+                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                          KG
+                        </span>
+
+                      </p>
+
+                    </div>
+
+                    {/* DIFFERENCE */}
+
+                    <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3.5 sm:p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <span className="text-xs text-amber-400/70">
+                          Total Difference
+                        </span>
+
+                        <Scale
+                          size={15}
+                          className="text-amber-400/70"
+                        />
+
+                      </div>
+
+                      <p
+                        className={`mt-1.5 text-xl font-bold sm:text-2xl ${
                           (
                             summary?.totalDifferenceKg ||
                             0
                           ) > 0
-                            ? "text-cyan-400/80"
+                            ? "text-cyan-400"
                             : (
                                   summary?.totalDifferenceKg ||
                                   0
                                 ) < 0
-                              ? "text-red-400/80"
-                              : "text-emerald-400/80"
+                              ? "text-red-400"
+                              : "text-emerald-400"
                         }`}
                       >
 
@@ -686,647 +1269,19 @@ export default function DashboardPage() {
                         {formatNumber(
                           summary?.totalDifferenceKg ||
                             0
-                        )}{" "}
-                        KG
-
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                  {/* AREAS */}
-
-                  <div className="group rounded-xl border border-slate-800 bg-[#07140d] p-3 transition duration-300 hover:border-purple-800 hover:shadow-lg hover:shadow-purple-950/20 sm:rounded-2xl sm:p-4">
-
-                    <div className="flex items-center justify-between gap-2">
-
-                      <div className="min-w-0 flex-1">
-
-                        <p className="truncate text-[9px] font-medium text-slate-500 sm:text-xs">
-                          Areas
-                        </p>
-
-                        <p className="mt-1 text-base font-bold leading-tight text-white sm:text-xl">
-
-                          {summary?.collectedAreas ||
-                            0}
-
-                          <span className="text-xs text-slate-600 sm:text-sm">
-                            {" "}
-                            /{" "}
-                            {summary?.totalAreas ||
-                              0}
-                          </span>
-
-                        </p>
-
-                      </div>
-
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 sm:h-10 sm:w-10">
-
-                        <Users
-                          size={16}
-                          className="sm:h-5 sm:w-5"
-                        />
-
-                      </div>
-
-                    </div>
-
-                    <p className="mt-2 truncate text-[8px] text-slate-600 sm:text-[10px]">
-
-                      Total collections:{" "}
-
-                      <span className="font-medium text-purple-400/80">
-
-                        {formatNumber(
-                          summary?.totalCollections ||
-                            0
                         )}
 
-                      </span>
+                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                          KG
+                        </span>
 
-                    </p>
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    TODAY QUICK SUMMARY
-                ================================================= */}
-
-                <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:grid-cols-3 sm:gap-4">
-
-                  {/* COLLECTION COUNT */}
-
-                  <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3 sm:rounded-2xl sm:p-4">
-
-                    <p className="text-[8px] uppercase tracking-wider text-slate-600 sm:text-[10px]">
-                      Selected Day Collections
-                    </p>
-
-                    <p className="mt-1 text-base font-bold text-white sm:text-xl">
-
-                      {formatNumber(
-                        today?.collectionCount ||
-                          0
-                      )}
-
-                    </p>
-
-                  </div>
-
-                  {/* FIELD */}
-
-                  <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3 sm:rounded-2xl sm:p-4">
-
-                    <p className="text-[8px] uppercase tracking-wider text-emerald-500/60 sm:text-[10px]">
-                      Selected Day Field
-                    </p>
-
-                    <p className="mt-1 text-base font-bold text-emerald-400 sm:text-xl">
-
-                      {formatNumber(
-                        today?.teaWeightKg ||
-                          0
-                      )}{" "}
-
-                      <span className="text-[9px] sm:text-xs">
-                        KG
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                  {/* FACTORY */}
-
-                  <div className="col-span-2 rounded-xl border border-blue-500/10 bg-blue-500/5 p-3 sm:col-span-1 sm:rounded-2xl sm:p-4">
-
-                    <p className="text-[8px] uppercase tracking-wider text-blue-400/60 sm:text-[10px]">
-                      Selected Day Factory
-                    </p>
-
-                    <p className="mt-1 text-base font-bold text-blue-400 sm:text-xl">
-
-                      {formatNumber(
-                        today?.factoryWeightKg ||
-                          0
-                      )}{" "}
-
-                      <span className="text-[9px] sm:text-xs">
-                        KG
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    TODAY'S AREA COLLECTIONS
-                ================================================= */}
-
-                <div className="mt-5 overflow-hidden rounded-xl border border-slate-800 bg-[#07140d] sm:mt-6 sm:rounded-2xl">
-
-                  {/* HEADER */}
-
-                  <div className="border-b border-slate-800 p-3 sm:p-5">
-
-                    <div className="flex items-center justify-between gap-3">
-
-                      <div className="min-w-0">
-
-                        <h2 className="text-sm font-semibold text-white sm:text-base">
-                          Today&apos;s Area Collections
-                        </h2>
-
-                        <p className="mt-1 text-[9px] text-slate-600 sm:text-xs">
-
-                          Collection details for{" "}
-
-                          {formatDateForDisplay(
-                            data?.date ||
-                              selectedDate
-                          )}
-
-                        </p>
-
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-1.5 text-[9px] text-slate-600 sm:text-xs">
-
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 sm:h-2 sm:w-2" />
-
-                        {areas.length} areas
-
-                      </div>
+                      </p>
 
                     </div>
 
                   </div>
 
-                  {/* =================================================
-                      NO DATA
-                  ================================================= */}
-
-                  {areas.length === 0 ? (
-
-                    <div className="flex min-h-[250px] items-center justify-center px-5">
-
-                      <div className="text-center">
-
-                        <Leaf
-                          size={34}
-                          className="mx-auto text-slate-700"
-                        />
-
-                        <p className="mt-3 text-xs text-slate-500 sm:text-sm">
-                          No collection recorded for this date.
-                        </p>
-
-                        <p className="mt-1 text-[10px] text-slate-700 sm:text-xs">
-                          Select another date to view its collections.
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  ) : (
-
-                    /* =================================================
-                       AREA LIST
-                    ================================================= */
-
-                    <div className="divide-y divide-slate-800/70">
-
-                      {areas.map((area) => {
-
-                        /* ===========================================
-                           TODAY VALUES ONLY
-                        =========================================== */
-
-                        const todayField =
-                          Number(
-                            area.todayTeaWeightKg ||
-                              0
-                          );
-
-                        const todayFactory =
-                          Number(
-                            area.todayFactoryWeightKg ||
-                              0
-                          );
-
-                        const todayDifference =
-                          Number(
-                            area.todayDifferenceKg ||
-                              0
-                          );
-
-                        const todayCollections =
-                          Number(
-                            area.todayCollectionCount ||
-                              0
-                          );
-
-                        const status =
-                          getDifferenceStatus(
-                            todayDifference
-                          );
-
-                        /* ===========================================
-                           TODAY BAR WIDTHS ONLY
-                        =========================================== */
-
-                        const fieldWidth =
-                          todayField > 0
-                            ? Math.max(
-                                3,
-                                (todayField /
-                                  maxWeight) *
-                                  100
-                              )
-                            : 0;
-
-                        const factoryWidth =
-                          todayFactory > 0
-                            ? Math.max(
-                                3,
-                                (todayFactory /
-                                  maxWeight) *
-                                  100
-                              )
-                            : 0;
-
-                        return (
-
-                          <Link
-                            key={area.areaId}
-                            href={`/dashboard/areas/${encodeURIComponent(
-                              area.areaId
-                            )}?date=${encodeURIComponent(
-                              data?.date ||
-                                selectedDate
-                            )}`}
-                            className="group block p-3 transition hover:bg-slate-900/30 sm:p-5"
-                          >
-
-                            {/* =======================================
-                                AREA HEADER
-                            ======================================= */}
-
-                            <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
-
-                              <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-
-                                <div className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 px-2 text-[10px] font-bold text-emerald-400 sm:h-10 sm:min-w-10 sm:rounded-xl sm:px-3 sm:text-sm">
-
-                                  {area.areaName}
-
-                                </div>
-
-                                <div className="min-w-0">
-
-                                  <p className="truncate text-xs font-semibold text-white sm:text-sm">
-                                    {area.areaName}
-                                  </p>
-
-                                  <p className="text-[9px] text-slate-600 sm:text-xs">
-
-                                    {todayCollections} collection
-                                    {todayCollections !== 1
-                                      ? "s"
-                                      : ""}
-
-                                  </p>
-
-                                </div>
-
-                              </div>
-
-                              <ArrowRight
-                                size={16}
-                                className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-emerald-400"
-                              />
-
-                            </div>
-
-                            {/* =======================================
-                                TODAY FIELD WEIGHT BAR
-                            ======================================= */}
-
-                            <div className="mb-4 sm:mb-5">
-
-                              <div className="mb-1.5 flex items-center justify-between">
-
-                                <div className="flex items-center gap-1.5">
-
-                                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-
-                                  <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
-                                    Field Weight
-                                  </span>
-
-                                </div>
-
-                                <span className="text-[9px] font-semibold text-white sm:text-xs">
-
-                                  {formatNumber(
-                                    todayField
-                                  )}{" "}
-                                  KG
-
-                                </span>
-
-                              </div>
-
-                              <div className="relative h-8 overflow-hidden rounded-lg bg-slate-900 sm:h-10 sm:rounded-xl">
-
-                                <div
-                                  className="absolute inset-y-0 left-0 rounded-lg bg-emerald-500/80 transition-all duration-500 group-hover:bg-emerald-400 sm:rounded-xl"
-                                  style={{
-                                    width: `${fieldWidth}%`,
-                                  }}
-                                />
-
-                                <div className="relative z-10 flex h-full items-center px-2.5 sm:px-3">
-
-                                  <span className="truncate text-[9px] font-semibold text-white sm:text-xs">
-
-                                    {formatNumber(
-                                      todayField
-                                    )}{" "}
-                                    KG
-
-                                  </span>
-
-                                </div>
-
-                              </div>
-
-                            </div>
-
-                            {/* =======================================
-                                TODAY FACTORY WEIGHT BAR
-                            ======================================= */}
-
-                            <div className="mb-4 sm:mb-5">
-
-                              <div className="mb-1.5 flex items-center justify-between">
-
-                                <div className="flex items-center gap-1.5">
-
-                                  <span className="h-2 w-2 rounded-full bg-blue-400" />
-
-                                  <span className="text-[9px] font-medium text-slate-500 sm:text-xs">
-                                    Factory Weight
-                                  </span>
-
-                                </div>
-
-                                <span className="text-[9px] font-semibold text-blue-400 sm:text-xs">
-
-                                  {formatNumber(
-                                    todayFactory
-                                  )}{" "}
-                                  KG
-
-                                </span>
-
-                              </div>
-
-                              <div className="relative h-8 overflow-hidden rounded-lg bg-slate-900 sm:h-10 sm:rounded-xl">
-
-                                <div
-                                  className="absolute inset-y-0 left-0 rounded-lg bg-blue-500/70 transition-all duration-500 group-hover:bg-blue-400/80 sm:rounded-xl"
-                                  style={{
-                                    width: `${factoryWidth}%`,
-                                  }}
-                                />
-
-                                <div className="relative z-10 flex h-full items-center px-2.5 sm:px-3">
-
-                                  <span className="truncate text-[9px] font-semibold text-white sm:text-xs">
-
-                                    {formatNumber(
-                                      todayFactory
-                                    )}{" "}
-                                    KG
-
-                                  </span>
-
-                                </div>
-
-                              </div>
-
-                            </div>
-
-                            {/* =======================================
-                                TODAY DETAILS
-                            ======================================= */}
-
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-slate-800 pt-3 sm:grid-cols-4 sm:gap-3 sm:pt-4">
-
-                              {/* FIELD */}
-
-                              <div className="min-w-0">
-
-                                <span className="block text-[8px] text-slate-600 sm:text-xs">
-                                  Field Total
-                                </span>
-
-                                <span className="mt-0.5 block truncate text-[10px] font-semibold text-white sm:text-xs">
-
-                                  {formatNumber(
-                                    todayField
-                                  )}{" "}
-                                  KG
-
-                                </span>
-
-                              </div>
-
-                              {/* FACTORY */}
-
-                              <div className="min-w-0">
-
-                                <span className="block text-[8px] text-slate-600 sm:text-xs">
-                                  Factory Total
-                                </span>
-
-                                <span className="mt-0.5 block truncate text-[10px] font-semibold text-blue-400 sm:text-xs">
-
-                                  {formatNumber(
-                                    todayFactory
-                                  )}{" "}
-                                  KG
-
-                                </span>
-
-                              </div>
-
-                              {/* DIFFERENCE */}
-
-                              <div className="min-w-0">
-
-                                <span className="block text-[8px] text-slate-600 sm:text-xs">
-                                  Difference
-                                </span>
-
-                                <span
-                                  className={`mt-0.5 block truncate text-[10px] font-semibold sm:text-xs ${
-                                    todayDifference > 0
-                                      ? "text-cyan-400"
-                                      : todayDifference < 0
-                                        ? "text-red-400"
-                                        : "text-emerald-400"
-                                  }`}
-                                >
-
-                                  {todayDifference > 0
-                                    ? "+"
-                                    : ""}
-
-                                  {formatNumber(
-                                    todayDifference
-                                  )}{" "}
-                                  KG
-
-                                </span>
-
-                              </div>
-
-                              {/* STATUS */}
-
-                              <div className="min-w-0">
-
-                                <span className="hidden text-[8px] text-slate-600 sm:block sm:text-xs">
-                                  Status
-                                </span>
-
-                                <span
-                                  className={`mt-1 inline-flex rounded-md border px-2 py-1 text-[8px] font-medium sm:text-[10px] ${status.className}`}
-                                >
-                                  {status.label}
-                                </span>
-
-                              </div>
-
-                            </div>
-
-                          </Link>
-
-                        );
-                      })}
-
-                    </div>
-
-                  )}
-
-                </div>
-
-                {/* =================================================
-                    CUMULATIVE TOTAL SUMMARY
-                ================================================= */}
-
-                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-4">
-
-                  {/* FIELD */}
-
-                  <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3 sm:rounded-2xl sm:p-5">
-
-                    <p className="text-[9px] uppercase tracking-wider text-emerald-500/70 sm:text-xs">
-                      Total Field Weight
-                    </p>
-
-                    <p className="mt-1 text-lg font-bold text-emerald-400 sm:text-2xl">
-
-                      {formatNumber(
-                        summary?.totalTeaWeightKg ||
-                          0
-                      )}{" "}
-
-                      <span className="text-[10px] sm:text-sm">
-                        KG
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                  {/* FACTORY */}
-
-                  <div className="rounded-xl border border-blue-500/10 bg-blue-500/5 p-3 sm:rounded-2xl sm:p-5">
-
-                    <p className="text-[9px] uppercase tracking-wider text-blue-400/70 sm:text-xs">
-                      Factory Weight Total
-                    </p>
-
-                    <p className="mt-1 text-lg font-bold text-blue-400 sm:text-2xl">
-
-                      {formatNumber(
-                        summary?.totalFactoryWeightKg ||
-                          0
-                      )}{" "}
-
-                      <span className="text-[10px] sm:text-sm">
-                        KG
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                  {/* DIFFERENCE */}
-
-                  <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3 sm:rounded-2xl sm:p-5">
-
-                    <p className="text-[9px] uppercase tracking-wider text-amber-400/70 sm:text-xs">
-                      Total Difference
-                    </p>
-
-                    <p
-                      className={`mt-1 text-lg font-bold sm:text-2xl ${
-                        (
-                          summary?.totalDifferenceKg ||
-                          0
-                        ) > 0
-                          ? "text-cyan-400"
-                          : (
-                                summary?.totalDifferenceKg ||
-                                0
-                              ) < 0
-                            ? "text-red-400"
-                            : "text-emerald-400"
-                      }`}
-                    >
-
-                      {(
-                        summary?.totalDifferenceKg ||
-                        0
-                      ) > 0
-                        ? "+"
-                        : ""}
-
-                      {formatNumber(
-                        summary?.totalDifferenceKg ||
-                          0
-                      )}{" "}
-
-                      <span className="text-[10px] sm:text-sm">
-                        KG
-                      </span>
-
-                    </p>
-
-                  </div>
-
-                </div>
+                </section>
 
               </>
 
