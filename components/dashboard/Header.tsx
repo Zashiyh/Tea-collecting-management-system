@@ -93,7 +93,7 @@ export default function Header({
         {/* Mobile Brand */}
         <div className="sm:hidden">
           <p className="text-sm font-semibold text-white">
-            Cooroonduwatte Tea
+            Cooroondowatte tea Factory
           </p>
         </div>
       </div>
