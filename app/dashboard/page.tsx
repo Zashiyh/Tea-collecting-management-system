@@ -241,7 +241,7 @@ export default function DashboardPage() {
 
   /* =======================================================
      FIXED BAR SCALE
-     
+
      1000 KG = 100% FULL
   ======================================================= */
 
@@ -353,52 +353,6 @@ export default function DashboardPage() {
                 </button>
 
               </div>
-
-            </div>
-
-            {/* =================================================
-                PERIOD BAR
-            ================================================= */}
-
-            <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-
-              <div className="flex min-w-0 items-center gap-3">
-
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-                  <CalendarDays size={15} />
-                </div>
-
-                <div className="min-w-0">
-
-                  <p className="text-[10px] uppercase tracking-wider text-slate-600 sm:text-xs">
-                    Collection Period
-                  </p>
-
-                  <p className="truncate text-sm font-semibold text-white sm:text-base">
-
-                    {formatDateForDisplay(
-                      data?.fromDate ||
-                        "2026-10-01"
-                    )}
-
-                    <span className="mx-1.5 text-slate-700">
-                      →
-                    </span>
-
-                    {formatDateForDisplay(
-                      data?.toDate ||
-                        selectedDate
-                    )}
-
-                  </p>
-
-                </div>
-
-              </div>
-
-              <p className="text-[10px] text-slate-700 sm:text-xs">
-                Cumulative total up to selected date
-              </p>
 
             </div>
 
@@ -1296,4 +1250,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
