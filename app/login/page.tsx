@@ -1,8 +1,15 @@
+
 "use client";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  LockKeyhole,
+  UserRound,
+} from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +29,9 @@ export default function LoginPage() {
     setError("");
 
     if (!username.trim() || !password) {
-      setError("Please enter your username and password.");
+      setError(
+        "Please enter your username and password."
+      );
       return;
     }
 
@@ -35,12 +44,23 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username,
+          username: username.trim(),
           password,
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+
+      let data: {
+        success?: boolean;
+        message?: string;
+      };
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid server response.");
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(
@@ -67,32 +87,37 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[#020a06] px-4 text-white">
       <div className="flex min-h-screen items-center justify-center py-10">
         <div className="w-full max-w-md">
+
           {/* Logo / Brand */}
           <div className="mb-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 shadow-lg shadow-emerald-950/20">
-              <span className="text-xl font-bold text-emerald-400">
-                CT
-              </span>
-            </div>
+
+            {/* Logo - No Box */}
+            <img
+              src="/logo.jpg"
+              alt="Cooroonduwatte Tea Logo"
+              className="mx-auto h-24 w-auto object-contain"
+            />
 
             <h1 className="mt-5 text-2xl font-bold tracking-tight text-white">
-              Cooroonduwatte Tea
+              Cooroonduwatte Estate
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
-              Management System
+              Green Tea Details
             </p>
           </div>
 
           {/* Login Card */}
           <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5 shadow-2xl shadow-black/20 sm:p-7">
+
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-white">
                 Welcome back
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Sign in to access the factory management system.
+                Sign in to access the factory management
+                system.
               </p>
             </div>
 
@@ -100,6 +125,7 @@ export default function LoginPage() {
               onSubmit={handleSubmit}
               className="space-y-5"
             >
+
               {/* Username */}
               <div>
                 <label
@@ -110,7 +136,9 @@ export default function LoginPage() {
                 </label>
 
                 <div className="relative">
-                  <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                  <UserRound
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600"
+                  />
 
                   <input
                     id="username"
@@ -137,7 +165,9 @@ export default function LoginPage() {
                 </label>
 
                 <div className="relative">
-                  <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+                  <LockKeyhole
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600"
+                  />
 
                   <input
                     id="password"
@@ -159,7 +189,9 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setShowPassword((value) => !value)
+                      setShowPassword(
+                        (value) => !value
+                      )
                     }
                     disabled={loading}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 transition hover:text-slate-300 disabled:cursor-not-allowed"
@@ -187,7 +219,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Login */}
+              {/* Login Button */}
               <button
                 type="submit"
                 disabled={loading}
@@ -204,6 +236,7 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {/* Footer */}
             <div className="mt-6 border-t border-slate-800 pt-5 text-center">
               <p className="text-xs text-slate-600">
                 Authorized factory staff only.
@@ -211,11 +244,14 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Bottom Text */}
           <p className="mt-6 text-center text-xs text-slate-700">
             Cooroonduwatte Tea Management System
           </p>
+
         </div>
       </div>
     </main>
   );
 }
+
