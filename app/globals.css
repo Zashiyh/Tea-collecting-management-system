@@ -1,26 +1,336 @@
+
 @import "tailwindcss";
 
+/* =========================================================
+   DEFAULT THEME
+   Dark mode is the default for this project
+========================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020a06;
+  --foreground: #ffffff;
+
+  --surface: #07140d;
+  --surface-secondary: #0a1910;
+
+  --border: #1e293b;
+
+  --muted: #64748b;
+  --muted-dark: #475569;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* =========================================================
+   LIGHT THEME
+========================================================= */
+
+html[data-theme="light"] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --surface: #ffffff;
+  --surface-secondary: #f1f5f9;
+
+  --border: #e2e8f0;
+
+  --muted: #64748b;
+  --muted-dark: #475569;
+}
+
+/* =========================================================
+   DARK THEME
+========================================================= */
+
+html[data-theme="dark"] {
+  --background: #020a06;
+  --foreground: #ffffff;
+
+  --surface: #07140d;
+  --surface-secondary: #0a1910;
+
+  --border: #1e293b;
+
+  --muted: #64748b;
+  --muted-dark: #475569;
+}
+
+/* =========================================================
+   BODY
+========================================================= */
+
+html,
+body {
+  min-height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* =========================================================
+   GLOBAL TRANSITION
+========================================================= */
+
+body,
+header,
+main,
+section,
+aside,
+div,
+button,
+input,
+select,
+textarea {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* =========================================================
+   LIGHT MODE - EXISTING DARK UI COLORS
+   Your components currently use hard-coded Tailwind colors,
+   so these selectors convert them when light mode is active.
+========================================================= */
+
+/* Main page background */
+
+html[data-theme="light"]
+  [class*="bg-[#020a06]"] {
+  background-color: #f8fafc !important;
+}
+
+/* Main cards / panels */
+
+html[data-theme="light"]
+  [class*="bg-[#07140d]"] {
+  background-color: #ffffff !important;
+}
+
+/* Table header / secondary surface */
+
+html[data-theme="light"]
+  [class*="bg-[#0a1910]"] {
+  background-color: #f1f5f9 !important;
+}
+
+/* =========================================================
+   SLATE BACKGROUNDS
+========================================================= */
+
+html[data-theme="light"]
+  [class~="bg-slate-900"] {
+  background-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"]
+  [class*="bg-slate-900/70"] {
+  background-color: #f8fafc !important;
+}
+
+html[data-theme="light"]
+  [class*="bg-slate-900/25"] {
+  background-color: #f8fafc !important;
+}
+
+/* =========================================================
+   BORDERS
+========================================================= */
+
+html[data-theme="light"]
+  [class~="border-slate-800"] {
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"]
+  [class*="border-slate-800/70"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* =========================================================
+   TEXT
+========================================================= */
+
+html[data-theme="light"]
+  [class~="text-white"] {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"]
+  [class~="text-slate-300"] {
+  color: #334155 !important;
+}
+
+html[data-theme="light"]
+  [class~="text-slate-400"] {
+  color: #475569 !important;
+}
+
+html[data-theme="light"]
+  [class~="text-slate-500"] {
+  color: #64748b !important;
+}
+
+html[data-theme="light"]
+  [class~="text-slate-600"] {
+  color: #64748b !important;
+}
+
+html[data-theme="light"]
+  [class~="text-slate-700"] {
+  color: #475569 !important;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+html[data-theme="light"] header {
+  background-color: rgba(
+    248,
+    250,
+    252,
+    0.96
+  ) !important;
+
+  border-color: #e2e8f0 !important;
+}
+
+/* =========================================================
+   INPUTS
+========================================================= */
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* =========================================================
+   HOVER BACKGROUNDS
+========================================================= */
+
+html[data-theme="light"]
+  [class*="hover:bg-slate-800"]:hover {
+  background-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"]
+  [class*="hover:bg-slate-900"]:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html[data-theme="light"]
+  [class*="hover:bg-slate-900/25"]:hover {
+  background-color: #f8fafc !important;
+}
+
+/* =========================================================
+   DIVIDERS
+========================================================= */
+
+html[data-theme="light"]
+  [class*="divide-slate-800"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* =========================================================
+   ACCENT COLORS
+   Keep status colors visible in both themes
+========================================================= */
+
+html[data-theme="light"]
+  [class~="text-emerald-400"] {
+  color: #059669 !important;
+}
+
+html[data-theme="light"]
+  [class~="text-blue-400"] {
+  color: #2563eb !important;
+}
+
+html[data-theme="light"]
+  [class~="text-cyan-400"] {
+  color: #0891b2 !important;
+}
+
+html[data-theme="light"]
+  [class~="text-red-400"] {
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"]
+  [class~="text-purple-400"] {
+  color: #9333ea !important;
+}
+
+html[data-theme="light"]
+  [class~="text-amber-400"] {
+  color: #d97706 !important;
+}
+
+/* =========================================================
+   LIGHT MODE - COMMON TRANSPARENT BACKGROUNDS
+========================================================= */
+
+html[data-theme="light"]
+  [class*="bg-emerald-500/"] {
+  background-color: rgb(16 185 129 / 0.08) !important;
+}
+
+html[data-theme="light"]
+  [class*="bg-blue-500/"] {
+  background-color: rgb(59 130 246 / 0.08) !important;
+}
+
+html[data-theme="light"]
+  [class*="bg-purple-500/"] {
+  background-color: rgb(168 85 247 / 0.08) !important;
+}
+
+html[data-theme="light"]
+  [class*="bg-amber-500/"] {
+  background-color: rgb(245 158 11 / 0.08) !important;
+}
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
