@@ -103,7 +103,7 @@ export default function LoginPage() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
-              Green Tea Details
+              Green Leaf Details
             </p>
           </div>
 
