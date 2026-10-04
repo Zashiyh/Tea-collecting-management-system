@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -103,12 +104,14 @@ export default function CollectionsPage() {
   const [editingCollection, setEditingCollection] =
     useState<Collection | null>(null);
 
-  // Dashboard mobile menu
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Filters
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
+
+  /* =====================================================
+     LOAD COLLECTIONS
+  ===================================================== */
 
   async function loadCollections() {
     try {
@@ -172,6 +175,10 @@ export default function CollectionsPage() {
     }
   }
 
+  /* =====================================================
+     LOAD AREAS
+  ===================================================== */
+
   async function loadAreas() {
     try {
       setAreasLoading(true);
@@ -213,10 +220,18 @@ export default function CollectionsPage() {
     }
   }
 
+  /* =====================================================
+     INITIAL LOAD
+  ===================================================== */
+
   useEffect(() => {
     loadCollections();
     loadAreas();
   }, []);
+
+  /* =====================================================
+     CREATE / EDIT
+  ===================================================== */
 
   function handleCreated() {
     setShowAddModal(false);
@@ -227,6 +242,10 @@ export default function CollectionsPage() {
     setEditingCollection(null);
     loadCollections();
   }
+
+  /* =====================================================
+     DELETE
+  ===================================================== */
 
   async function handleDelete(collectionId: string) {
     const confirmed = window.confirm(
@@ -260,7 +279,8 @@ export default function CollectionsPage() {
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message || "Failed to delete collection"
+          data.message ||
+            "Failed to delete collection"
         );
       }
 
@@ -276,11 +296,16 @@ export default function CollectionsPage() {
     }
   }
 
+  /* =====================================================
+     FILTER
+  ===================================================== */
+
   const filteredCollections = useMemo(() => {
     return collections.filter((collection) => {
       const matchesDate =
         !selectedDate ||
-        getSriLankaDate(collection.date) === selectedDate;
+        getSriLankaDate(collection.date) ===
+          selectedDate;
 
       const matchesArea =
         !selectedAreaId ||
@@ -288,79 +313,107 @@ export default function CollectionsPage() {
 
       return matchesDate && matchesArea;
     });
-  }, [collections, selectedDate, selectedAreaId]);
+  }, [
+    collections,
+    selectedDate,
+    selectedAreaId,
+  ]);
 
-  const totalTeaWeight = filteredCollections.reduce(
-    (total, collection) =>
-      total + Number(collection.totalKg || 0),
-    0
-  );
+  /* =====================================================
+     TOTALS
+  ===================================================== */
 
-  const totalFactoryWeight = filteredCollections.reduce(
-    (total, collection) =>
-      total + Number(collection.factoryWeightKg || 0),
-    0
-  );
+  const totalTeaWeight =
+    filteredCollections.reduce(
+      (total, collection) =>
+        total + Number(collection.totalKg || 0),
+      0
+    );
+
+  const totalFactoryWeight =
+    filteredCollections.reduce(
+      (total, collection) =>
+        total +
+        Number(
+          collection.factoryWeightKg || 0
+        ),
+      0
+    );
 
   const totalDifference = Number(
-    (totalFactoryWeight - totalTeaWeight).toFixed(2)
+    (
+      totalFactoryWeight -
+      totalTeaWeight
+    ).toFixed(2)
   );
 
   const hasActiveFilter =
-    selectedDate !== "" || selectedAreaId !== "";
+    selectedDate !== "" ||
+    selectedAreaId !== "";
 
   function clearFilters() {
     setSelectedDate("");
     setSelectedAreaId("");
   }
 
+  /* =====================================================
+     UI
+  ===================================================== */
+
   return (
-    <div className="min-h-screen bg-[#07130d] text-white">
-      {/* Dashboard Sidebar */}
+    <div className="min-h-screen bg-[#020a06] text-white">
+      {/* SIDEBAR */}
       <Sidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
 
-      {/* Main Content */}
+      {/* MAIN */}
       <div className="lg:ml-64">
-        {/* Dashboard Header */}
         <Header
           onMenuClick={() => setMobileOpen(true)}
         />
 
         <main className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
-          {/* Page Header */}
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* PAGE HEADER */}
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <Link
                 href="/dashboard"
-                className="mb-3 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
+                className="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 transition hover:text-emerald-400"
               >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={16} />
                 Back to Dashboard
               </Link>
 
-              <h1 className="text-2xl font-bold sm:text-3xl">
-                Tea Collections
-              </h1>
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-emerald-600/10 p-2.5 text-emerald-400">
+                  <Scale size={21} />
+                </div>
 
-              <p className="mt-1 text-sm text-gray-400">
-                Manage daily tea collections
-              </p>
+                <div>
+                  <h1 className="text-2xl font-bold sm:text-3xl">
+                    Tea Collections
+                  </h1>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Manage daily tea collections
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => {
                   loadCollections();
                   loadAreas();
                 }}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#284635] bg-[#102218] px-4 py-3 text-sm font-medium text-gray-200 transition hover:bg-[#16301f]"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-[#07140d] px-3.5 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white"
               >
                 <RefreshCw
-                  size={17}
+                  size={16}
                   className={
                     loading || areasLoading
                       ? "animate-spin"
@@ -373,35 +426,36 @@ export default function CollectionsPage() {
 
               <button
                 type="button"
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#1f8f4d] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#25a657]"
+                onClick={() =>
+                  setShowAddModal(true)
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
               >
-                <Plus size={18} />
+                <Plus size={17} />
                 Add Collection
               </button>
             </div>
           </div>
 
-          {/* Main Error */}
+          {/* ERRORS */}
           {error && (
-            <div className="mb-6 rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-300">
+            <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {error}
             </div>
           )}
 
-          {/* Areas Error */}
           {areasError && (
-            <div className="mb-6 rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">
+            <div className="mb-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
               {areasError}
             </div>
           )}
 
-          {/* Filters */}
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+          {/* FILTER BAR */}
+          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#07140d] p-3.5 sm:flex-row sm:flex-wrap sm:items-end">
             <div>
               <label
                 htmlFor="collection-date"
-                className="mb-1.5 block text-xs font-medium text-gray-500"
+                className="mb-1.5 block text-[11px] font-medium text-slate-500"
               >
                 Date
               </label>
@@ -411,16 +465,18 @@ export default function CollectionsPage() {
                 type="date"
                 value={selectedDate}
                 onChange={(event) =>
-                  setSelectedDate(event.target.value)
+                  setSelectedDate(
+                    event.target.value
+                  )
                 }
-                className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[190px]"
+                className="h-9 w-full rounded-lg border border-slate-800 bg-[#020a06] px-3 text-xs text-white outline-none transition focus:border-emerald-500 sm:w-[175px]"
               />
             </div>
 
             <div>
               <label
                 htmlFor="collection-area"
-                className="mb-1.5 block text-xs font-medium text-gray-500"
+                className="mb-1.5 block text-[11px] font-medium text-slate-500"
               >
                 Area
               </label>
@@ -429,11 +485,15 @@ export default function CollectionsPage() {
                 id="collection-area"
                 value={selectedAreaId}
                 onChange={(event) =>
-                  setSelectedAreaId(event.target.value)
+                  setSelectedAreaId(
+                    event.target.value
+                  )
                 }
-                className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[220px]"
+                className="h-9 w-full rounded-lg border border-slate-800 bg-[#020a06] px-3 text-xs text-white outline-none transition focus:border-emerald-500 sm:w-[200px]"
               >
-                <option value="">All Areas</option>
+                <option value="">
+                  All Areas
+                </option>
 
                 {areas.map((area) => (
                   <option
@@ -450,115 +510,125 @@ export default function CollectionsPage() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#294936] bg-[#112519] px-4 text-sm text-gray-300 transition hover:bg-[#183421]"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-800 bg-[#020a06] px-3 text-xs text-slate-300 transition hover:bg-slate-900 hover:text-white"
               >
-                <X size={16} />
+                <X size={14} />
                 Clear
               </button>
             )}
 
-            <div className="flex h-11 items-center text-sm text-gray-500 sm:ml-2">
-              Showing{" "}
-              <span className="ml-1 font-semibold text-green-400">
+            <div className="flex h-9 items-center text-xs text-slate-500">
+              Showing
+              <span className="ml-1 font-semibold text-emerald-400">
                 {filteredCollections.length}
               </span>
 
               <span className="ml-1">
-                collection
-                {filteredCollections.length === 1
+                record
+                {filteredCollections.length ===
+                1
                   ? ""
                   : "s"}
               </span>
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-              <p className="text-sm text-gray-400">
+          {/* SUMMARY */}
+          <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3">
+              <p className="text-[11px] text-slate-500">
                 Collections
               </p>
 
-              <p className="mt-2 text-2xl font-bold">
+              <p className="mt-1 text-lg font-bold text-white">
                 {filteredCollections.length}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-              <p className="text-sm text-gray-400">
-                Total Tea / Field Weight
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3">
+              <p className="text-[11px] text-slate-500">
+                Tea / Field Weight
               </p>
 
-              <p className="mt-2 text-2xl font-bold">
-                {formatNumber(totalTeaWeight)}{" "}
-                <span className="text-sm font-normal text-gray-400">
+              <p className="mt-1 text-lg font-bold text-white">
+                {formatNumber(
+                  totalTeaWeight
+                )}
+
+                <span className="ml-1 text-[11px] font-normal text-slate-500">
                   kg
                 </span>
               </p>
             </div>
 
-            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-              <p className="text-sm text-gray-400">
-                Total Factory Weight
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3">
+              <p className="text-[11px] text-slate-500">
+                Factory Weight
               </p>
 
-              <p className="mt-2 text-2xl font-bold">
-                {formatNumber(totalFactoryWeight)}{" "}
-                <span className="text-sm font-normal text-gray-400">
+              <p className="mt-1 text-lg font-bold text-white">
+                {formatNumber(
+                  totalFactoryWeight
+                )}
+
+                <span className="ml-1 text-[11px] font-normal text-slate-500">
                   kg
                 </span>
               </p>
             </div>
 
-            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-              <p className="text-sm text-gray-400">
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3">
+              <p className="text-[11px] text-slate-500">
                 Difference
               </p>
 
               <p
-                className={`mt-2 text-2xl font-bold ${
+                className={`mt-1 text-lg font-bold ${
                   totalDifference > 0
                     ? "text-cyan-400"
                     : totalDifference < 0
                       ? "text-red-400"
-                      : "text-green-400"
+                      : "text-emerald-400"
                 }`}
               >
-                {totalDifference > 0 ? "+" : ""}
-                {formatNumber(totalDifference)}{" "}
-                <span className="text-sm font-normal text-gray-400">
+                {totalDifference > 0
+                  ? "+"
+                  : ""}
+
+                {formatNumber(
+                  totalDifference
+                )}
+
+                <span className="ml-1 text-[11px] font-normal text-slate-500">
                   kg
                 </span>
-              </p>
-
-              <p className="mt-1 text-xs text-gray-500">
-                Factory weight − tea weight
               </p>
             </div>
           </div>
 
-          {/* Loading */}
+          {/* LOADING */}
           {loading && (
-            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center text-gray-400">
+            <div className="rounded-xl border border-slate-800 bg-[#07140d] px-4 py-10 text-center text-sm text-slate-500">
               Loading collections...
             </div>
           )}
 
-          {/* Empty */}
+          {/* EMPTY */}
           {!loading &&
-            filteredCollections.length === 0 &&
+            filteredCollections.length ===
+              0 &&
             !error && (
-              <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center">
+              <div className="rounded-xl border border-slate-800 bg-[#07140d] px-4 py-10 text-center">
                 <Scale
-                  size={42}
-                  className="mx-auto mb-4 text-gray-500"
+                  size={36}
+                  className="mx-auto mb-3 text-slate-600"
                 />
 
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-base font-semibold text-white">
                   No collections found
                 </h2>
 
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-slate-500">
                   {hasActiveFilter
                     ? "No collections match the selected filters."
                     : "Add your first tea collection."}
@@ -568,183 +638,301 @@ export default function CollectionsPage() {
                   <button
                     type="button"
                     onClick={clearFilters}
-                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#1f8f4d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#25a657]"
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500"
                   >
-                    <X size={16} />
+                    <X size={14} />
                     Clear Filters
                   </button>
                 )}
               </div>
             )}
 
-          {/* Collections */}
+          {/* EXCEL STYLE TABLE */}
           {!loading &&
-            filteredCollections.length > 0 && (
-              <div className="space-y-4">
-                {filteredCollections.map((collection) => {
-                  const teaWeight = Number(
-                    collection.totalKg || 0
-                  );
+            filteredCollections.length >
+              0 && (
+              <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#07140d]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#0a1a11]">
+                        <th className="border-r border-slate-800 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          #
+                        </th>
 
-                  const factoryWeight = Number(
-                    collection.factoryWeightKg || 0
-                  );
+                        <th className="border-r border-slate-800 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Date
+                        </th>
 
-                  const difference = Number(
-                    (
-                      factoryWeight -
-                      teaWeight
-                    ).toFixed(2)
-                  );
+                        <th className="border-r border-slate-800 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Area
+                        </th>
 
-                  return (
-                    <div
-                      key={collection.collectionId}
-                      className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5 transition hover:border-[#31563f]"
-                    >
-                      {/* Collection Header */}
-                      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <h2 className="text-lg font-semibold">
-                              {collection.areaName}
-                            </h2>
+                        <th className="border-r border-slate-800 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Tea / Field
+                          <br />
+                          Weight
+                        </th>
 
-                            <span className="rounded-lg bg-[#173421] px-2.5 py-1 text-xs text-green-300">
-                              {collection.collectionId}
-                            </span>
-                          </div>
+                        <th className="border-r border-slate-800 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Factory
+                          <br />
+                          Weight
+                        </th>
 
-                          <p className="mt-1 text-sm text-gray-500">
-                            {formatDate(collection.date)}
-                          </p>
-                        </div>
+                        <th className="border-r border-slate-800 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Difference
+                        </th>
 
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            href={`/collections/${encodeURIComponent(
-                              collection.collectionId
-                            )}`}
-                            className="inline-flex items-center gap-2 rounded-lg border border-[#294936] bg-[#112519] px-3 py-2 text-sm text-gray-200 transition hover:bg-[#183421]"
-                          >
-                            <Eye size={16} />
-                            View Collection
-                          </Link>
+                        <th className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEditingCollection(
-                                collection
-                              )
-                            }
-                            className="inline-flex items-center gap-2 rounded-lg border border-[#294936] bg-[#112519] px-3 py-2 text-sm text-gray-200 transition hover:bg-[#183421]"
-                          >
-                            <Pencil size={16} />
-                            Edit
-                          </button>
+                    <tbody>
+                      {filteredCollections.map(
+                        (
+                          collection,
+                          index
+                        ) => {
+                          const teaWeight =
+                            Number(
+                              collection.totalKg ||
+                                0
+                            );
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDelete(
+                          const factoryWeight =
+                            Number(
+                              collection.factoryWeightKg ||
+                                0
+                            );
+
+                          const difference =
+                            Number(
+                              (
+                                factoryWeight -
+                                teaWeight
+                              ).toFixed(2)
+                            );
+
+                          return (
+                            <tr
+                              key={
                                 collection.collectionId
-                              )
-                            }
-                            className="inline-flex items-center gap-2 rounded-lg border border-red-900/50 bg-red-950/20 px-3 py-2 text-sm text-red-300 transition hover:bg-red-950/40"
-                          >
-                            <Trash2 size={16} />
-                            Delete
-                          </button>
-                        </div>
-                      </div>
+                              }
+                              className="border-b border-slate-800/80 transition hover:bg-[#0a1a11]"
+                            >
+                              {/* NUMBER */}
+                              <td className="border-r border-slate-800/80 px-3 py-2.5 text-xs text-slate-600">
+                                {index + 1}
+                              </td>
 
-                      {/* Weight Details */}
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
-                          <p className="text-xs text-gray-500">
-                            Tea / Field Weight
-                          </p>
+                              {/* DATE */}
+                              <td className="border-r border-slate-800/80 px-3 py-2.5 text-xs text-slate-300">
+                                {formatDate(
+                                  collection.date
+                                )}
+                              </td>
 
-                          <p className="mt-2 text-xl font-bold">
-                            {formatNumber(teaWeight)}{" "}
-                            <span className="text-sm font-normal text-gray-500">
-                              kg
-                            </span>
-                          </p>
-                        </div>
+                              {/* AREA */}
+                              <td className="border-r border-slate-800/80 px-3 py-2.5">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-white">
+                                    {
+                                      collection.areaName
+                                    }
+                                  </span>
 
-                        <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
-                          <p className="text-xs text-gray-500">
-                            Factory Weight
-                          </p>
+                                  <span className="mt-0.5 text-[10px] text-slate-600">
+                                    {
+                                      collection.collectionId
+                                    }
+                                  </span>
+                                </div>
+                              </td>
 
-                          <p className="mt-2 text-xl font-bold">
-                            {formatNumber(factoryWeight)}{" "}
-                            <span className="text-sm font-normal text-gray-500">
-                              kg
-                            </span>
-                          </p>
-                        </div>
+                              {/* TEA */}
+                              <td className="border-r border-slate-800/80 px-3 py-2.5 text-right">
+                                <span className="text-sm font-medium text-white">
+                                  {formatNumber(
+                                    teaWeight
+                                  )}
+                                </span>
 
-                        <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
-                          <p className="text-xs text-gray-500">
-                            Difference
-                          </p>
+                                <span className="ml-1 text-[10px] text-slate-600">
+                                  kg
+                                </span>
+                              </td>
 
-                          <p
-                            className={`mt-2 text-xl font-bold ${
-                              difference > 0
+                              {/* FACTORY */}
+                              <td className="border-r border-slate-800/80 px-3 py-2.5 text-right">
+                                <span className="text-sm font-medium text-white">
+                                  {formatNumber(
+                                    factoryWeight
+                                  )}
+                                </span>
+
+                                <span className="ml-1 text-[10px] text-slate-600">
+                                  kg
+                                </span>
+                              </td>
+
+                              {/* DIFFERENCE */}
+                              <td className="border-r border-slate-800/80 px-3 py-2.5 text-right">
+                                <span
+                                  className={`text-sm font-semibold ${
+                                    difference >
+                                    0
+                                      ? "text-cyan-400"
+                                      : difference <
+                                          0
+                                        ? "text-red-400"
+                                        : "text-emerald-400"
+                                  }`}
+                                >
+                                  {difference >
+                                  0
+                                    ? "+"
+                                    : ""}
+                                  {formatNumber(
+                                    difference
+                                  )}
+                                </span>
+
+                                <span className="ml-1 text-[10px] text-slate-600">
+                                  kg
+                                </span>
+                              </td>
+
+                              {/* ACTIONS */}
+                              <td className="px-3 py-2.5">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <Link
+                                    href={`/collections/${encodeURIComponent(
+                                      collection.collectionId
+                                    )}`}
+                                    title="View"
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-800 bg-[#020a06] text-slate-400 transition hover:border-emerald-500/30 hover:text-emerald-400"
+                                  >
+                                    <Eye
+                                      size={14}
+                                    />
+                                  </Link>
+
+                                  <button
+                                    type="button"
+                                    title="Edit"
+                                    onClick={() =>
+                                      setEditingCollection(
+                                        collection
+                                      )
+                                    }
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-800 bg-[#020a06] text-slate-400 transition hover:border-emerald-500/30 hover:text-emerald-400"
+                                  >
+                                    <Pencil
+                                      size={14}
+                                    />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    title="Delete"
+                                    onClick={() =>
+                                      handleDelete(
+                                        collection.collectionId
+                                      )
+                                    }
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 text-red-400 transition hover:bg-red-500/10"
+                                  >
+                                    <Trash2
+                                      size={14}
+                                    />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+                      )}
+                    </tbody>
+
+                    {/* TOTAL */}
+                    <tfoot>
+                      <tr className="bg-[#0a1a11]">
+                        <td
+                          colSpan={3}
+                          className="border-r border-slate-800 px-3 py-3 text-right text-xs font-semibold text-slate-400"
+                        >
+                          TOTAL
+                        </td>
+
+                        <td className="border-r border-slate-800 px-3 py-3 text-right text-sm font-bold text-white">
+                          {formatNumber(
+                            totalTeaWeight
+                          )}{" "}
+                          <span className="text-[10px] font-normal text-slate-600">
+                            kg
+                          </span>
+                        </td>
+
+                        <td className="border-r border-slate-800 px-3 py-3 text-right text-sm font-bold text-white">
+                          {formatNumber(
+                            totalFactoryWeight
+                          )}{" "}
+                          <span className="text-[10px] font-normal text-slate-600">
+                            kg
+                          </span>
+                        </td>
+
+                        <td className="border-r border-slate-800 px-3 py-3 text-right">
+                          <span
+                            className={`text-sm font-bold ${
+                              totalDifference >
+                              0
                                 ? "text-cyan-400"
-                                : difference < 0
+                                : totalDifference <
+                                    0
                                   ? "text-red-400"
-                                  : "text-green-400"
+                                  : "text-emerald-400"
                             }`}
                           >
-                            {difference > 0
+                            {totalDifference >
+                            0
                               ? "+"
                               : ""}
-                            {formatNumber(difference)}{" "}
-                            <span className="text-sm font-normal text-gray-500">
+                            {formatNumber(
+                              totalDifference
+                            )}{" "}
+                            <span className="text-[10px] font-normal text-slate-600">
                               kg
                             </span>
-                          </p>
+                          </span>
+                        </td>
 
-                          <p className="mt-1 text-xs text-gray-600">
-                            Factory weight − tea weight
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Notes */}
-                      {collection.notes && (
-                        <div className="mt-4 rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
-                          <p className="text-xs text-gray-500">
-                            Notes
-                          </p>
-
-                          <p className="mt-1 text-sm text-gray-300">
-                            {collection.notes}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        <td className="px-3 py-3 text-center text-[10px] text-slate-600">
+                          {filteredCollections.length}{" "}
+                          records
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             )}
         </main>
       </div>
 
-      {/* Add Collection Modal */}
+      {/* ADD */}
       <CollectionModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() =>
+          setShowAddModal(false)
+        }
         onCreated={handleCreated}
       />
 
-      {/* Edit Collection Modal */}
+      {/* EDIT */}
       {editingCollection && (
         <EditCollectionModal
           isOpen={true}
@@ -758,3 +946,4 @@ export default function CollectionsPage() {
     </div>
   );
 }
+

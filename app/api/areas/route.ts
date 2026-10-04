@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
@@ -70,10 +71,7 @@ export async function GET() {
        SERVER ERROR
     ========================================= */
 
-    console.error(
-      "GET AREAS ERROR:",
-      error
-    );
+    console.error("GET AREAS ERROR:", error);
 
     return NextResponse.json(
       {
@@ -95,9 +93,7 @@ export async function GET() {
    CREATE AREA
 ========================================= */
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
     // 🔒 Login required
     await requireAuth();
@@ -106,13 +102,11 @@ export async function POST(
 
     const body = await request.json();
 
-    const areaId = String(
-      body.areaId || ""
-    ).trim();
+    /* =========================================
+       USER INPUT
+    ========================================= */
 
-    const name = String(
-      body.name || ""
-    ).trim();
+    const name = String(body.name || "").trim();
 
     const description = String(
       body.description || ""
@@ -127,43 +121,15 @@ export async function POST(
        VALIDATION
     ========================================= */
 
-    if (!areaId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Area ID is required",
-        },
-        { status: 400 }
-      );
-    }
-
     if (!name) {
       return NextResponse.json(
         {
           success: false,
           message: "Area name is required",
         },
-        { status: 400 }
-      );
-    }
-
-    /* =========================================
-       CHECK AREA ID
-    ========================================= */
-
-    const existingAreaId =
-      await Area.findOne({
-        areaId,
-      });
-
-    if (existingAreaId) {
-      return NextResponse.json(
         {
-          success: false,
-          message:
-            "Area ID already exists",
-        },
-        { status: 409 }
+          status: 400,
+        }
       );
     }
 
@@ -171,21 +137,68 @@ export async function POST(
        CHECK AREA NAME
     ========================================= */
 
-    const existingName =
-      await Area.findOne({
-        name,
-      });
+    const existingName = await Area.findOne({
+      name: {
+        $regex: `^${name.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
+        )}$`,
+        $options: "i",
+      },
+    });
 
     if (existingName) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Area name already exists",
+          message: "Area name already exists",
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
+
+    /* =========================================
+       GENERATE AREA ID AUTOMATICALLY
+       
+       Example:
+       AREA-001
+       AREA-002
+       AREA-003
+    ========================================= */
+
+    const existingAreas = await Area.find({
+      areaId: {
+        $regex: /^AREA-\d+$/i,
+      },
+    })
+      .select("areaId")
+      .lean();
+
+    let highestNumber = 0;
+
+    for (const area of existingAreas) {
+      const match =
+        String(area.areaId).match(/(\d+)$/);
+
+      if (match) {
+        const number = Number(match[1]);
+
+        if (
+          Number.isFinite(number) &&
+          number > highestNumber
+        ) {
+          highestNumber = number;
+        }
+      }
+    }
+
+    const nextNumber = highestNumber + 1;
+
+    const areaId = `AREA-${String(
+      nextNumber
+    ).padStart(3, "0")}`;
 
     /* =========================================
        CREATE AREA
@@ -198,6 +211,10 @@ export async function POST(
       status,
     });
 
+    /* =========================================
+       SUCCESS RESPONSE
+    ========================================= */
+
     return NextResponse.json(
       {
         success: true,
@@ -206,7 +223,7 @@ export async function POST(
           _id: area._id.toString(),
           areaId: area.areaId,
           name: area.name,
-          description: area.description,
+          description: area.description || "",
           status: area.status,
           supplierCount: 0,
         },
@@ -236,6 +253,27 @@ export async function POST(
     }
 
     /* =========================================
+       DUPLICATE KEY
+    ========================================= */
+
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code?: number }).code === 11000
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "An area with the same identifier already exists. Please try again.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    /* =========================================
        SERVER ERROR
     ========================================= */
 
@@ -258,3 +296,4 @@ export async function POST(
     );
   }
 }
+
