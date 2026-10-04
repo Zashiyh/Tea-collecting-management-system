@@ -13,6 +13,9 @@ import {
   X,
 } from "lucide-react";
 
+import Sidebar from "@/components/dashboard/Sidebar";
+import Header from "@/components/dashboard/Header";
+
 import CollectionModal from "@/components/collections/CollectionModal";
 import EditCollectionModal from "@/components/collections/EditCollectionModal";
 
@@ -100,7 +103,10 @@ export default function CollectionsPage() {
   const [editingCollection, setEditingCollection] =
     useState<Collection | null>(null);
 
-  // Dashboard-style filters
+  // Dashboard mobile menu
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Filters
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
 
@@ -270,23 +276,6 @@ export default function CollectionsPage() {
     }
   }
 
-  /*
-   * FILTER
-   *
-   * Date + Area are combined.
-   *
-   * Date only:
-   *   -> selected day's collections
-   *
-   * Area only:
-   *   -> selected area's all collections
-   *
-   * Date + Area:
-   *   -> selected area on selected date
-   *
-   * Both empty:
-   *   -> all collections
-   */
   const filteredCollections = useMemo(() => {
     return collections.filter((collection) => {
       const matchesDate =
@@ -327,261 +316,272 @@ export default function CollectionsPage() {
 
   return (
     <div className="min-h-screen bg-[#07130d] text-white">
-      <div className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
+      {/* Dashboard Sidebar */}
+      <Sidebar
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Link
-              href="/dashboard"
-              className="mb-3 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
-            >
-              <ArrowLeft size={18} />
-              Back to Dashboard
-            </Link>
+      {/* Main Content */}
+      <div className="lg:ml-64">
+        {/* Dashboard Header */}
+        <Header
+          onMenuClick={() => setMobileOpen(true)}
+        />
 
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              Tea Collections
-            </h1>
+        <main className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
+          {/* Page Header */}
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Link
+                href="/dashboard"
+                className="mb-3 inline-flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
+              >
+                <ArrowLeft size={18} />
+                Back to Dashboard
+              </Link>
 
-            <p className="mt-1 text-sm text-gray-400">
-              Manage daily tea collections
-            </p>
-          </div>
+              <h1 className="text-2xl font-bold sm:text-3xl">
+                Tea Collections
+              </h1>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                loadCollections();
-                loadAreas();
-              }}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#284635] bg-[#102218] px-4 py-3 text-sm font-medium text-gray-200 transition hover:bg-[#16301f]"
-            >
-              <RefreshCw
-                size={17}
-                className={
-                  loading || areasLoading
-                    ? "animate-spin"
-                    : ""
-                }
-              />
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1f8f4d] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#25a657]"
-            >
-              <Plus size={18} />
-              Add Collection
-            </button>
-          </div>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-300">
-            {error}
-          </div>
-        )}
-
-        {/* Dashboard Style Filters */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
-
-          {/* Date */}
-          <div>
-            <label
-              htmlFor="collection-date"
-              className="mb-1.5 block text-xs font-medium text-gray-500"
-            >
-              Date
-            </label>
-
-            <input
-              id="collection-date"
-              type="date"
-              value={selectedDate}
-              onChange={(event) =>
-                setSelectedDate(event.target.value)
-              }
-              className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[190px]"
-            />
-          </div>
-
-          {/* Area */}
-          <div>
-            <label
-              htmlFor="collection-area"
-              className="mb-1.5 block text-xs font-medium text-gray-500"
-            >
-              Area
-            </label>
-
-            <select
-              id="collection-area"
-              value={selectedAreaId}
-              onChange={(event) =>
-                setSelectedAreaId(event.target.value)
-              }
-              className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[220px]"
-            >
-              <option value="">
-                All Areas
-              </option>
-
-              {areas.map((area) => (
-                <option
-                  key={area.areaId}
-                  value={area.areaId}
-                >
-                  {area.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear */}
-          {hasActiveFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#294936] bg-[#112519] px-4 text-sm text-gray-300 transition hover:bg-[#183421]"
-            >
-              <X size={16} />
-              Clear
-            </button>
-          )}
-
-          {/* Result */}
-          <div className="flex h-11 items-center text-sm text-gray-500 sm:ml-2">
-            Showing{" "}
-            <span className="ml-1 font-semibold text-green-400">
-              {filteredCollections.length}
-            </span>
-
-            <span className="ml-1">
-              collection
-              {filteredCollections.length === 1
-                ? ""
-                : "s"}
-            </span>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-
-          <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-            <p className="text-sm text-gray-400">
-              Collections
-            </p>
-
-            <p className="mt-2 text-2xl font-bold">
-              {filteredCollections.length}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-            <p className="text-sm text-gray-400">
-              Total Tea / Field Weight
-            </p>
-
-            <p className="mt-2 text-2xl font-bold">
-              {formatNumber(totalTeaWeight)}{" "}
-              <span className="text-sm font-normal text-gray-400">
-                kg
-              </span>
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-            <p className="text-sm text-gray-400">
-              Total Factory Weight
-            </p>
-
-            <p className="mt-2 text-2xl font-bold">
-              {formatNumber(totalFactoryWeight)}{" "}
-              <span className="text-sm font-normal text-gray-400">
-                kg
-              </span>
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
-            <p className="text-sm text-gray-400">
-              Difference
-            </p>
-
-            <p
-              className={`mt-2 text-2xl font-bold ${
-                totalDifference > 0
-                  ? "text-cyan-400"
-                  : totalDifference < 0
-                    ? "text-red-400"
-                    : "text-green-400"
-              }`}
-            >
-              {totalDifference > 0 ? "+" : ""}
-              {formatNumber(totalDifference)}{" "}
-              <span className="text-sm font-normal text-gray-400">
-                kg
-              </span>
-            </p>
-
-            <p className="mt-1 text-xs text-gray-500">
-              Factory weight − tea weight
-            </p>
-          </div>
-        </div>
-
-        {/* Loading */}
-        {loading && (
-          <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center text-gray-400">
-            Loading collections...
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading &&
-          filteredCollections.length === 0 &&
-          !error && (
-            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center">
-              <Scale
-                size={42}
-                className="mx-auto mb-4 text-gray-500"
-              />
-
-              <h2 className="text-lg font-semibold">
-                No collections found
-              </h2>
-
-              <p className="mt-2 text-sm text-gray-500">
-                {hasActiveFilter
-                  ? "No collections match the selected filters."
-                  : "Add your first tea collection."}
+              <p className="mt-1 text-sm text-gray-400">
+                Manage daily tea collections
               </p>
+            </div>
 
-              {hasActiveFilter && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#1f8f4d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#25a657]"
-                >
-                  <X size={16} />
-                  Clear Filters
-                </button>
-              )}
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  loadCollections();
+                  loadAreas();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#284635] bg-[#102218] px-4 py-3 text-sm font-medium text-gray-200 transition hover:bg-[#16301f]"
+              >
+                <RefreshCw
+                  size={17}
+                  className={
+                    loading || areasLoading
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+
+                Refresh
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1f8f4d] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#25a657]"
+              >
+                <Plus size={18} />
+                Add Collection
+              </button>
+            </div>
+          </div>
+
+          {/* Main Error */}
+          {error && (
+            <div className="mb-6 rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-300">
+              {error}
             </div>
           )}
 
-        {/* Collections */}
-        {!loading &&
-          filteredCollections.length > 0 && (
-            <div className="space-y-4">
-              {filteredCollections.map(
-                (collection) => {
+          {/* Areas Error */}
+          {areasError && (
+            <div className="mb-6 rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-300">
+              {areasError}
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div>
+              <label
+                htmlFor="collection-date"
+                className="mb-1.5 block text-xs font-medium text-gray-500"
+              >
+                Date
+              </label>
+
+              <input
+                id="collection-date"
+                type="date"
+                value={selectedDate}
+                onChange={(event) =>
+                  setSelectedDate(event.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[190px]"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="collection-area"
+                className="mb-1.5 block text-xs font-medium text-gray-500"
+              >
+                Area
+              </label>
+
+              <select
+                id="collection-area"
+                value={selectedAreaId}
+                onChange={(event) =>
+                  setSelectedAreaId(event.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-[#294936] bg-[#09180f] px-3 text-sm text-white outline-none transition focus:border-green-500 sm:w-[220px]"
+              >
+                <option value="">All Areas</option>
+
+                {areas.map((area) => (
+                  <option
+                    key={area.areaId}
+                    value={area.areaId}
+                  >
+                    {area.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#294936] bg-[#112519] px-4 text-sm text-gray-300 transition hover:bg-[#183421]"
+              >
+                <X size={16} />
+                Clear
+              </button>
+            )}
+
+            <div className="flex h-11 items-center text-sm text-gray-500 sm:ml-2">
+              Showing{" "}
+              <span className="ml-1 font-semibold text-green-400">
+                {filteredCollections.length}
+              </span>
+
+              <span className="ml-1">
+                collection
+                {filteredCollections.length === 1
+                  ? ""
+                  : "s"}
+              </span>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
+              <p className="text-sm text-gray-400">
+                Collections
+              </p>
+
+              <p className="mt-2 text-2xl font-bold">
+                {filteredCollections.length}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
+              <p className="text-sm text-gray-400">
+                Total Tea / Field Weight
+              </p>
+
+              <p className="mt-2 text-2xl font-bold">
+                {formatNumber(totalTeaWeight)}{" "}
+                <span className="text-sm font-normal text-gray-400">
+                  kg
+                </span>
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
+              <p className="text-sm text-gray-400">
+                Total Factory Weight
+              </p>
+
+              <p className="mt-2 text-2xl font-bold">
+                {formatNumber(totalFactoryWeight)}{" "}
+                <span className="text-sm font-normal text-gray-400">
+                  kg
+                </span>
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5">
+              <p className="text-sm text-gray-400">
+                Difference
+              </p>
+
+              <p
+                className={`mt-2 text-2xl font-bold ${
+                  totalDifference > 0
+                    ? "text-cyan-400"
+                    : totalDifference < 0
+                      ? "text-red-400"
+                      : "text-green-400"
+                }`}
+              >
+                {totalDifference > 0 ? "+" : ""}
+                {formatNumber(totalDifference)}{" "}
+                <span className="text-sm font-normal text-gray-400">
+                  kg
+                </span>
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                Factory weight − tea weight
+              </p>
+            </div>
+          </div>
+
+          {/* Loading */}
+          {loading && (
+            <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center text-gray-400">
+              Loading collections...
+            </div>
+          )}
+
+          {/* Empty */}
+          {!loading &&
+            filteredCollections.length === 0 &&
+            !error && (
+              <div className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-10 text-center">
+                <Scale
+                  size={42}
+                  className="mx-auto mb-4 text-gray-500"
+                />
+
+                <h2 className="text-lg font-semibold">
+                  No collections found
+                </h2>
+
+                <p className="mt-2 text-sm text-gray-500">
+                  {hasActiveFilter
+                    ? "No collections match the selected filters."
+                    : "Add your first tea collection."}
+                </p>
+
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#1f8f4d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#25a657]"
+                  >
+                    <X size={16} />
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            )}
+
+          {/* Collections */}
+          {!loading &&
+            filteredCollections.length > 0 && (
+              <div className="space-y-4">
+                {filteredCollections.map((collection) => {
                   const teaWeight = Number(
                     collection.totalKg || 0
                   );
@@ -602,7 +602,7 @@ export default function CollectionsPage() {
                       key={collection.collectionId}
                       className="rounded-2xl border border-[#203b2b] bg-[#0c1d13] p-5 transition hover:border-[#31563f]"
                     >
-                      {/* Top */}
+                      {/* Collection Header */}
                       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
@@ -620,6 +620,7 @@ export default function CollectionsPage() {
                           </p>
                         </div>
 
+                        {/* Actions */}
                         <div className="flex flex-wrap gap-2">
                           <Link
                             href={`/collections/${encodeURIComponent(
@@ -659,10 +660,8 @@ export default function CollectionsPage() {
                         </div>
                       </div>
 
-                      {/* Weights */}
+                      {/* Weight Details */}
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
-                        {/* Tea */}
                         <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
                           <p className="text-xs text-gray-500">
                             Tea / Field Weight
@@ -676,7 +675,6 @@ export default function CollectionsPage() {
                           </p>
                         </div>
 
-                        {/* Factory */}
                         <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
                           <p className="text-xs text-gray-500">
                             Factory Weight
@@ -690,7 +688,6 @@ export default function CollectionsPage() {
                           </p>
                         </div>
 
-                        {/* Difference */}
                         <div className="rounded-xl border border-[#1e3929] bg-[#09180f] p-4">
                           <p className="text-xs text-gray-500">
                             Difference
@@ -708,9 +705,7 @@ export default function CollectionsPage() {
                             {difference > 0
                               ? "+"
                               : ""}
-                            {formatNumber(
-                              difference
-                            )}{" "}
+                            {formatNumber(difference)}{" "}
                             <span className="text-sm font-normal text-gray-500">
                               kg
                             </span>
@@ -736,20 +731,20 @@ export default function CollectionsPage() {
                       )}
                     </div>
                   );
-                }
-              )}
-            </div>
-          )}
+                })}
+              </div>
+            )}
+        </main>
       </div>
 
-      {/* Add */}
+      {/* Add Collection Modal */}
       <CollectionModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onCreated={handleCreated}
       />
 
-      {/* Edit */}
+      {/* Edit Collection Modal */}
       {editingCollection && (
         <EditCollectionModal
           isOpen={true}

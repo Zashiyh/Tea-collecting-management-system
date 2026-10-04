@@ -305,7 +305,7 @@ export default function DashboardPage() {
                 </p>
 
                 <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-3xl">
-                  Factory Overview
+                  Green Leaf Details
                 </h1>
 
                 <p className="mt-1 text-[11px] text-slate-500 sm:text-sm">
