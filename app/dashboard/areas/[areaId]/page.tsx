@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -131,11 +131,13 @@ export default function AreaDashboardPage() {
   ======================================================= */
 
   const [fromDate, setFromDate] = useState(
-    searchParams.get("from") || selectedDate
+    searchParams.get("from") ||
+      selectedDate
   );
 
   const [toDate, setToDate] = useState(
-    searchParams.get("to") || selectedDate
+    searchParams.get("to") ||
+      selectedDate
   );
 
   /* =======================================================
@@ -144,20 +146,26 @@ export default function AreaDashboardPage() {
 
   const [areaName, setAreaName] = useState("");
 
-  const [collections, setCollections] = useState<
-    Collection[]
-  >([]);
+  const [collections, setCollections] =
+    useState<Collection[]>([]);
 
-  const [summary, setSummary] = useState<AreaSummary>({
-    totalCollections: 0,
-    totalTeaWeightKg: 0,
-    totalFactoryWeightKg: 0,
-    totalDifferenceKg: 0,
-  });
+  const [summary, setSummary] =
+    useState<AreaSummary>({
+      totalCollections: 0,
+      totalTeaWeightKg: 0,
+      totalFactoryWeightKg: 0,
+      totalDifferenceKg: 0,
+    });
 
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+
+  /* =======================================================
+     AUTO DATE REFRESH CONTROL
+  ======================================================= */
+
+  const firstDateEffect = useRef(true);
 
   /* =======================================================
      LOAD AREA COLLECTIONS
@@ -171,8 +179,11 @@ export default function AreaDashboardPage() {
       setLoading(true);
       setError("");
 
-      const finalFrom = customFrom || fromDate;
-      const finalTo = customTo || toDate;
+      const finalFrom =
+        customFrom || fromDate;
+
+      const finalTo =
+        customTo || toDate;
 
       if (!finalFrom || !finalTo) {
         throw new Error(
@@ -301,10 +312,56 @@ export default function AreaDashboardPage() {
   }, [areaId]);
 
   /* =======================================================
-     APPLY DATE FILTER
+     AUTO REFRESH WHEN DATE CHANGES
   ======================================================= */
 
-  function handleApplyDates() {
+  useEffect(() => {
+    // Skip the first render.
+    // Initial data is already loaded above.
+    if (firstDateEffect.current) {
+      firstDateEffect.current = false;
+      return;
+    }
+
+    if (!areaId || !fromDate || !toDate) {
+      return;
+    }
+
+    // Don't send API request for invalid range.
+    if (fromDate > toDate) {
+      setError(
+        "From date cannot be after To date."
+      );
+      return;
+    }
+
+    fetchAreaCollections(
+      fromDate,
+      toDate
+    );
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromDate, toDate]);
+
+  /* =======================================================
+     MANUAL REFRESH
+  ======================================================= */
+
+  function handleRefresh() {
+    if (!fromDate || !toDate) {
+      setError(
+        "Please select a valid date."
+      );
+      return;
+    }
+
+    if (fromDate > toDate) {
+      setError(
+        "From date cannot be after To date."
+      );
+      return;
+    }
+
     fetchAreaCollections(
       fromDate,
       toDate
@@ -324,7 +381,9 @@ export default function AreaDashboardPage() {
 
       <Sidebar
         mobileOpen={mobileOpen}
-        onClose={() => setMobileOpen(false)}
+        onClose={() =>
+          setMobileOpen(false)
+        }
       />
 
       {/* =================================================
@@ -338,10 +397,13 @@ export default function AreaDashboardPage() {
         ================================================= */}
 
         <Header
-          onMenuClick={() => setMobileOpen(true)}
+          onMenuClick={() =>
+            setMobileOpen(true)
+          }
         />
 
         <main className="min-h-screen p-3 sm:p-5 lg:p-8">
+
           <div className="mx-auto max-w-[1500px]">
 
             {/* =================================================
@@ -353,7 +415,6 @@ export default function AreaDashboardPage() {
               className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-emerald-400 sm:mb-6 sm:text-sm"
             >
               <ArrowLeft size={16} />
-
               Back to Dashboard
             </Link>
 
@@ -396,7 +457,7 @@ export default function AreaDashboardPage() {
                   DATE FILTER
               ================================================= */}
 
-              <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
 
                 <div className="flex flex-1 items-center gap-2">
 
@@ -417,7 +478,7 @@ export default function AreaDashboardPage() {
                           event.target.value
                         )
                       }
-                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-auto sm:pr-3"
+                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-[145px] sm:pr-3"
                       style={{
                         colorScheme: "dark",
                       }}
@@ -446,7 +507,7 @@ export default function AreaDashboardPage() {
                           event.target.value
                         )
                       }
-                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-auto sm:pr-3"
+                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-2 text-xs text-white outline-none focus:border-emerald-500 sm:w-[145px] sm:pr-3"
                       style={{
                         colorScheme: "dark",
                       }}
@@ -456,15 +517,13 @@ export default function AreaDashboardPage() {
 
                 </div>
 
-                {/* APPLY */}
+                {/* MANUAL REFRESH */}
 
                 <button
                   type="button"
-                  onClick={
-                    handleApplyDates
-                  }
+                  onClick={handleRefresh}
                   disabled={loading}
-                  className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-4 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
+                  className="flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-4 text-xs font-medium text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
 
                   <RefreshCw
@@ -476,7 +535,7 @@ export default function AreaDashboardPage() {
                     }
                   />
 
-                  Apply
+                  Refresh
 
                 </button>
 
@@ -485,7 +544,7 @@ export default function AreaDashboardPage() {
             </div>
 
             {/* =================================================
-                SELECTED DATE INFO
+                DATE INFO
             ================================================= */}
 
             <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-4 py-3">
@@ -531,7 +590,7 @@ export default function AreaDashboardPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    fetchAreaCollections()
+                    handleRefresh()
                   }
                   className="flex w-fit items-center gap-2 rounded-lg border border-red-500/20 px-3 py-2 text-xs text-red-300 hover:bg-red-500/10"
                 >
@@ -643,9 +702,9 @@ export default function AreaDashboardPage() {
                     0
                       ? "text-cyan-400"
                       : summary.totalDifferenceKg <
-                        0
-                      ? "text-red-400"
-                      : "text-slate-300"
+                          0
+                        ? "text-red-400"
+                        : "text-slate-300"
                   }`}
                 >
 
@@ -1085,9 +1144,11 @@ export default function AreaDashboardPage() {
             </div>
 
           </div>
+
         </main>
+
       </div>
+
     </div>
   );
 }
-
