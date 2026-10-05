@@ -1,13 +1,13 @@
 
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import {
   Bell,
   LogOut,
   Menu,
   Moon,
-  Search,
   Sun,
   User,
 } from "lucide-react";
@@ -60,9 +60,13 @@ export default function Header({
   return (
     <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-800 bg-[#020a06]/95 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
 
-      {/* LEFT */}
+      {/* =================================================
+          LEFT
+      ================================================= */}
 
       <div className="flex items-center gap-3">
+
+        {/* MOBILE MENU */}
 
         <button
           type="button"
@@ -73,36 +77,30 @@ export default function Header({
           <Menu size={23} />
         </button>
 
-        <div className="relative hidden sm:block">
+        {/* LOGO */}
 
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
+          <Image
+            src="/logo.jpg"
+            alt="Cooroonduwatte Tea Logo"
+            width={44}
+            height={44}
+            priority
+            className="h-full w-full object-contain"
           />
-
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-64 rounded-xl border border-slate-800 bg-slate-900/70 py-2.5 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-600"
-          />
-
-        </div>
-
-        <div className="sm:hidden">
-
-          <p className="text-sm font-semibold text-white">
-            Cooroonduwatte Tea
-          </p>
-
         </div>
 
       </div>
 
-      {/* RIGHT */}
+      {/* =================================================
+          RIGHT
+      ================================================= */}
 
       <div className="relative flex items-center gap-2 sm:gap-3">
 
-        {/* THEME TOGGLE */}
+        {/* =================================================
+            THEME TOGGLE
+        ================================================= */}
 
         <button
           type="button"
@@ -126,7 +124,9 @@ export default function Header({
           )}
         </button>
 
-        {/* NOTIFICATION */}
+        {/* =================================================
+            NOTIFICATION
+        ================================================= */}
 
         <button
           type="button"
@@ -138,9 +138,13 @@ export default function Header({
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-emerald-500" />
         </button>
 
+        {/* DIVIDER */}
+
         <div className="hidden h-8 w-px bg-slate-800 sm:block" />
 
-        {/* PROFILE */}
+        {/* =================================================
+            PROFILE
+        ================================================= */}
 
         <button
           type="button"
@@ -170,10 +174,14 @@ export default function Header({
 
         </button>
 
-        {/* PROFILE DROPDOWN */}
+        {/* =================================================
+            PROFILE DROPDOWN
+        ================================================= */}
 
         {showProfile && (
           <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] shadow-2xl shadow-black/40">
+
+            {/* PROFILE INFO */}
 
             <div className="border-b border-slate-800 p-4">
 
@@ -199,7 +207,11 @@ export default function Header({
 
             </div>
 
+            {/* MENU */}
+
             <div className="p-2">
+
+              {/* PROFILE */}
 
               <button
                 type="button"
@@ -210,8 +222,13 @@ export default function Header({
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
               >
                 <User size={18} />
-                <span>Profile</span>
+
+                <span>
+                  Profile
+                </span>
               </button>
+
+              {/* LOGOUT */}
 
               <button
                 type="button"
@@ -226,7 +243,6 @@ export default function Header({
                     ? "Logging out..."
                     : "Logout"}
                 </span>
-
               </button>
 
             </div>
@@ -239,4 +255,3 @@ export default function Header({
     </header>
   );
 }
-
