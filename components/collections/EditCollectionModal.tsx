@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -33,8 +34,8 @@ interface Collection {
   _id?: string;
   collectionId: string;
   date: string;
-  areaId: string;
-  areaName: string;
+  areaId?: string;
+  areaName?: string;
   totalKg: number;
   factoryWeightKg: number;
   differenceKg: number;
@@ -90,8 +91,7 @@ export default function EditCollectionModal({
   ======================================================= */
 
   const [areas, setAreas] = useState<Area[]>([]);
-  const [areasLoading, setAreasLoading] =
-    useState(false);
+  const [areasLoading, setAreasLoading] = useState(false);
 
   /* =======================================================
      FORM
@@ -99,10 +99,8 @@ export default function EditCollectionModal({
 
   const [date, setDate] = useState("");
   const [areaId, setAreaId] = useState("");
-  const [teaWeight, setTeaWeight] =
-    useState("");
-  const [factoryWeight, setFactoryWeight] =
-    useState("");
+  const [teaWeight, setTeaWeight] = useState("");
+  const [factoryWeight, setFactoryWeight] = useState("");
   const [notes, setNotes] = useState("");
 
   /* =======================================================
@@ -113,49 +111,50 @@ export default function EditCollectionModal({
   const [error, setError] = useState("");
 
   /* =======================================================
-     SELECTED AREA
+     VALUES
   ======================================================= */
 
-  const selectedArea = useMemo(() => {
-    if (!areaId) return undefined;
-
-    return areas.find(
-      (area) => area.areaId === areaId
-    );
-  }, [areas, areaId]);
-
-  /* =======================================================
-     DIFFERENCE
-  ======================================================= */
-
-  const teaValue =
-    Number(teaWeight || 0);
-
-  const factoryValue =
-    Number(factoryWeight || 0);
+  const teaValue = Number(teaWeight || 0);
+  const factoryValue = Number(factoryWeight || 0);
 
   const difference = Number(
     (factoryValue - teaValue).toFixed(2)
   );
 
   /* =======================================================
+     SELECTED AREA
+  ======================================================= */
+
+  const selectedArea = useMemo(() => {
+    const cleanId = areaId.trim();
+
+    if (!cleanId) {
+      return undefined;
+    }
+
+    return areas.find(
+      (area) =>
+        String(area.areaId).trim().toLowerCase() ===
+        cleanId.toLowerCase()
+    );
+  }, [areas, areaId]);
+
+  /* =======================================================
      LOAD AREAS
   ======================================================= */
 
   async function fetchAreas(
-    currentAreaId?: string
+    currentAreaId: string,
+    currentAreaName: string
   ) {
     try {
       setAreasLoading(true);
       setError("");
 
-      const response = await fetch(
-        "/api/areas",
-        {
-          method: "GET",
-          cache: "no-store",
-        }
-      );
+      const response = await fetch("/api/areas", {
+        method: "GET",
+        cache: "no-store",
+      });
 
       const text = await response.text();
 
@@ -163,70 +162,114 @@ export default function EditCollectionModal({
         success?: boolean;
         message?: string;
         areas?: Area[];
-      };
+      } = {};
 
       try {
-        data = text
-          ? JSON.parse(text)
-          : {};
+        data = text ? JSON.parse(text) : {};
       } catch {
-        throw new Error(
-          "Invalid areas response."
-        );
+        throw new Error("Invalid areas response.");
       }
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to load areas."
+          data.message || "Failed to load areas."
         );
       }
 
-      const allAreas = data.areas || [];
+      const allAreas = Array.isArray(data.areas)
+        ? data.areas
+        : [];
 
-      /*
-       * Active areas are shown.
-       *
-       * IMPORTANT:
-       * Current collection area is also kept
-       * when it has become inactive.
-       */
-      const filteredAreas = allAreas.filter(
-        (area) =>
+      const cleanCurrentAreaId =
+        String(currentAreaId || "").trim();
+
+      const cleanCurrentAreaName =
+        String(currentAreaName || "").trim();
+
+      /* -----------------------------------------------------
+         Show active areas + current collection area.
+         This also keeps an inactive current area available
+         for editing.
+      ----------------------------------------------------- */
+
+      const filteredAreas = allAreas.filter((area) => {
+        const sameId =
+          cleanCurrentAreaId &&
+          String(area.areaId).trim().toLowerCase() ===
+            cleanCurrentAreaId.toLowerCase();
+
+        const sameName =
+          cleanCurrentAreaName &&
+          String(area.name).trim().toLowerCase() ===
+            cleanCurrentAreaName.toLowerCase();
+
+        return (
           area.status === "Active" ||
-          area.areaId === currentAreaId
+          sameId ||
+          sameName
+        );
+      });
+
+      /* -----------------------------------------------------
+         First try exact area ID.
+      ----------------------------------------------------- */
+
+      let matchedArea = filteredAreas.find(
+        (area) =>
+          String(area.areaId).trim().toLowerCase() ===
+          cleanCurrentAreaId.toLowerCase()
       );
+
+      /* -----------------------------------------------------
+         Fallback to area name.
+      ----------------------------------------------------- */
+
+      if (!matchedArea && cleanCurrentAreaName) {
+        matchedArea = filteredAreas.find(
+          (area) =>
+            String(area.name).trim().toLowerCase() ===
+            cleanCurrentAreaName.toLowerCase()
+        );
+      }
+
+      /* -----------------------------------------------------
+         Final fallback: search all areas.
+      ----------------------------------------------------- */
+
+      if (!matchedArea && cleanCurrentAreaName) {
+        matchedArea = allAreas.find(
+          (area) =>
+            String(area.name).trim().toLowerCase() ===
+            cleanCurrentAreaName.toLowerCase()
+        );
+
+        if (matchedArea) {
+          const alreadyIncluded = filteredAreas.some(
+            (area) =>
+              String(area.areaId).trim().toLowerCase() ===
+              String(matchedArea?.areaId)
+                .trim()
+                .toLowerCase()
+          );
+
+          if (!alreadyIncluded) {
+            filteredAreas.push(matchedArea);
+          }
+        }
+      }
 
       setAreas(filteredAreas);
 
-      /*
-       * IMPORTANT FIX:
-       *
-       * Set areaId AFTER areas are loaded.
-       * This guarantees the select value matches
-       * one of the option values.
-       */
-      if (currentAreaId) {
-        const currentArea =
-          filteredAreas.find(
-            (area) =>
-              area.areaId ===
-              currentAreaId
-          );
+      /* -----------------------------------------------------
+         Restore the saved area after areas are loaded.
+      ----------------------------------------------------- */
 
-        if (currentArea) {
-          setAreaId(
-            currentArea.areaId
-          );
-        } else {
-          /*
-           * If API does not contain the area,
-           * keep the collection's saved ID so
-           * we can show a useful error instead
-           * of silently clearing it.
-           */
-          setAreaId(currentAreaId);
-        }
+      if (matchedArea) {
+        setAreaId(String(matchedArea.areaId).trim());
+      } else if (cleanCurrentAreaId) {
+        setAreaId(cleanCurrentAreaId);
+      } else {
+        setAreaId("");
       }
     } catch (error) {
       console.error(
@@ -253,42 +296,50 @@ export default function EditCollectionModal({
       return;
     }
 
-    const initialDate =
-      getSriLankaDate(
-        collection.date
-      );
+    const initialDate = getSriLankaDate(
+      collection.date
+    );
 
-    const initialAreaId =
-      String(
-        collection.areaId || ""
-      ).trim();
+    const initialAreaId = String(
+      collection.areaId || ""
+    ).trim();
+
+    const initialAreaName = String(
+      collection.areaName || ""
+    ).trim();
 
     setDate(initialDate);
-    setAreaId("");
+
+    /* IMPORTANT:
+       Keep existing area immediately.
+       fetchAreas() will resolve it again after loading.
+    */
+    setAreaId(initialAreaId);
+
     setTeaWeight(
-      String(collection.totalKg ?? "")
+      collection.totalKg !== undefined &&
+        collection.totalKg !== null
+        ? String(collection.totalKg)
+        : ""
     );
+
     setFactoryWeight(
-      String(
-        collection.factoryWeightKg ?? ""
-      )
+      collection.factoryWeightKg !== undefined &&
+        collection.factoryWeightKg !== null
+        ? String(collection.factoryWeightKg)
+        : ""
     );
-    setNotes(
-      collection.notes || ""
-    );
+
+    setNotes(collection.notes || "");
     setError("");
 
-    /*
-     * Load areas first and then restore
-     * the collection's saved area.
-     */
-    fetchAreas(initialAreaId);
+    void fetchAreas(
+      initialAreaId,
+      initialAreaName
+    );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isOpen,
-    collection?.collectionId,
-  ]);
+  }, [isOpen, collection?.collectionId]);
 
   /* =======================================================
      CLOSE
@@ -311,12 +362,14 @@ export default function EditCollectionModal({
     value: string,
     setter: (value: string) => void
   ) {
-    /*
-     * Allow:
-     * 100
-     * 100.5
-     * 1000.25
-     */
+    /* Allows:
+       100
+       100.5
+       1000.25
+       .
+       0.
+    */
+
     if (!/^\d*\.?\d*$/.test(value)) {
       return;
     }
@@ -333,45 +386,79 @@ export default function EditCollectionModal({
   ) {
     event.preventDefault();
 
+    if (loading) {
+      return;
+    }
+
     setError("");
 
     const cleanDate = date.trim();
     const cleanAreaId = areaId.trim();
 
+    /* -----------------------------------------------------
+       DATE
+    ----------------------------------------------------- */
+
     if (!cleanDate) {
-      setError(
-        "Collection date is required."
-      );
+      setError("Collection date is required.");
       return;
     }
 
-    if (!cleanAreaId) {
+    /* -----------------------------------------------------
+       AREA
+    ----------------------------------------------------- */
+
+    let area: Area | undefined;
+
+    if (cleanAreaId) {
+      area = areas.find(
+        (item) =>
+          String(item.areaId).trim().toLowerCase() ===
+          cleanAreaId.toLowerCase()
+      );
+    }
+
+    /* Fallback using original collection area */
+
+    if (!area && collection.areaName) {
+      area = areas.find(
+        (item) =>
+          String(item.name).trim().toLowerCase() ===
+          String(collection.areaName)
+            .trim()
+            .toLowerCase()
+      );
+    }
+
+    /* Final fallback using collection.areaId */
+
+    if (!area && collection.areaId) {
+      area = areas.find(
+        (item) =>
+          String(item.areaId).trim().toLowerCase() ===
+          String(collection.areaId)
+            .trim()
+            .toLowerCase()
+      );
+    }
+
+    if (!area) {
       setError(
         "Please select an area."
       );
       return;
     }
 
-    /*
-     * IMPORTANT:
-     * Make sure selected area really exists.
-     */
-    const area = areas.find(
-      (item) =>
-        item.areaId === cleanAreaId
-    );
+    /* -----------------------------------------------------
+       TEA WEIGHT
+    ----------------------------------------------------- */
 
-    if (!area) {
-      setError(
-        "The selected area could not be found. Please select the area again."
-      );
-      return;
-    }
+    const finalTeaValue = Number(teaWeight);
 
     if (
-      teaWeight === "" ||
-      Number.isNaN(teaValue) ||
-      teaValue <= 0
+      teaWeight.trim() === "" ||
+      !Number.isFinite(finalTeaValue) ||
+      finalTeaValue <= 0
     ) {
       setError(
         "Please enter a valid tea weight."
@@ -379,10 +466,18 @@ export default function EditCollectionModal({
       return;
     }
 
+    /* -----------------------------------------------------
+       FACTORY WEIGHT
+    ----------------------------------------------------- */
+
+    const finalFactoryValue = Number(
+      factoryWeight
+    );
+
     if (
-      factoryWeight === "" ||
-      Number.isNaN(factoryValue) ||
-      factoryValue < 0
+      factoryWeight.trim() === "" ||
+      !Number.isFinite(finalFactoryValue) ||
+      finalFactoryValue < 0
     ) {
       setError(
         "Please enter a valid factory weight."
@@ -390,19 +485,39 @@ export default function EditCollectionModal({
       return;
     }
 
+    /* -----------------------------------------------------
+       DIFFERENCE
+       Factory - Tea
+    ----------------------------------------------------- */
+
+    const finalDifference = Number(
+      (
+        finalFactoryValue -
+        finalTeaValue
+      ).toFixed(2)
+    );
+
+    /* -----------------------------------------------------
+       UPDATE
+    ----------------------------------------------------- */
+
     try {
       setLoading(true);
 
       const body = {
         date: cleanDate,
-        areaId: area.areaId,
-        areaName: area.name,
-        totalKg: teaValue,
-        factoryWeightKg:
-          factoryValue,
-        differenceKg: difference,
+        areaId: String(area.areaId).trim(),
+        areaName: String(area.name).trim(),
+        totalKg: finalTeaValue,
+        factoryWeightKg: finalFactoryValue,
+        differenceKg: finalDifference,
         notes: notes.trim(),
       };
+
+      console.log(
+        "UPDATING COLLECTION:",
+        body
+      );
 
       const response = await fetch(
         `/api/collections/${encodeURIComponent(
@@ -415,21 +530,22 @@ export default function EditCollectionModal({
               "application/json",
           },
           cache: "no-store",
+          credentials: "include",
           body: JSON.stringify(body),
         }
       );
 
-      const text =
+      const responseText =
         await response.text();
 
       let data: {
         success?: boolean;
         message?: string;
-      };
+      } = {};
 
       try {
-        data = text
-          ? JSON.parse(text)
+        data = responseText
+          ? JSON.parse(responseText)
           : {};
       } catch {
         throw new Error(
@@ -447,7 +563,12 @@ export default function EditCollectionModal({
         );
       }
 
+      /* Refresh collection list */
+
       await onUpdated();
+
+      /* Close only after successful update */
+
       onClose();
     } catch (error) {
       console.error(
@@ -482,6 +603,7 @@ export default function EditCollectionModal({
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="edit-collection-title"
     >
       {/* OVERLAY */}
 
@@ -496,31 +618,26 @@ export default function EditCollectionModal({
       {/* MODAL */}
 
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] shadow-2xl">
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        {/* HEADER */}
 
         <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-[#07140d] px-5 py-4 sm:px-6">
-
           <div className="flex items-center gap-3">
-
             <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-400">
               <Save size={20} />
             </div>
 
             <div>
-
-              <h2 className="text-lg font-semibold text-white">
+              <h2
+                id="edit-collection-title"
+                className="text-lg font-semibold text-white"
+              >
                 Edit Collection
               </h2>
 
               <p className="text-xs text-slate-500">
                 {collection.collectionId}
               </p>
-
             </div>
-
           </div>
 
           <button
@@ -531,39 +648,31 @@ export default function EditCollectionModal({
           >
             <X size={20} />
           </button>
-
         </div>
 
-        {/* =================================================
-            FORM
-        ================================================= */}
+        {/* FORM */}
 
         <form
           onSubmit={handleSubmit}
           className="min-h-0 flex-1 overflow-y-auto"
         >
-
           <div className="space-y-5 p-5 sm:p-6">
-
             {/* ERROR */}
 
             {error && (
               <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-
                 <AlertCircle
                   size={18}
                   className="mt-0.5 shrink-0"
                 />
 
                 <span>{error}</span>
-
               </div>
             )}
 
             {/* DATE */}
 
             <div>
-
               <label
                 htmlFor="edit-collection-date"
                 className="mb-2 block text-sm font-medium text-slate-300"
@@ -575,7 +684,6 @@ export default function EditCollectionModal({
               </label>
 
               <div className="relative">
-
                 <CalendarDays
                   size={17}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
@@ -596,15 +704,12 @@ export default function EditCollectionModal({
                     colorScheme: "dark",
                   }}
                 />
-
               </div>
-
             </div>
 
             {/* AREA */}
 
             <div>
-
               <label
                 htmlFor="edit-collection-area"
                 className="mb-2 block text-sm font-medium text-slate-300"
@@ -616,20 +721,14 @@ export default function EditCollectionModal({
               </label>
 
               {areasLoading ? (
-
                 <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-800 bg-[#020a06] px-4 text-sm text-slate-500">
-
                   <Loader2
                     size={17}
                     className="animate-spin"
                   />
-
                   Loading areas...
-
                 </div>
-
               ) : (
-
                 <select
                   id="edit-collection-area"
                   value={areaId}
@@ -638,71 +737,66 @@ export default function EditCollectionModal({
                       event.target.value
                     )
                   }
-                  disabled={loading}
+                  disabled={
+                    loading ||
+                    areas.length === 0
+                  }
                   className="h-11 w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 text-sm text-white outline-none transition focus:border-emerald-500 disabled:opacity-60"
                 >
-
                   <option value="">
                     Select collection area
                   </option>
 
                   {areas.map((area) => (
                     <option
-                      key={area.areaId}
+                      key={`${area.areaId}`}
                       value={area.areaId}
                     >
                       {area.name} (
                       {area.areaId})
+                      {area.status ===
+                        "Inactive"
+                        ? " - Inactive"
+                        : ""}
                     </option>
                   ))}
-
                 </select>
-
               )}
-
-              {/* CURRENT AREA INFO */}
 
               {!areasLoading &&
                 selectedArea && (
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
-
                     <Leaf size={13} />
 
                     {selectedArea.name}{" "}
                     ({selectedArea.areaId})
-
                   </p>
                 )}
-
             </div>
 
             {/* WEIGHTS */}
 
             <div className="grid gap-5 sm:grid-cols-2">
-
               {/* TEA */}
 
               <div>
-
                 <label
                   htmlFor="edit-tea-weight"
                   className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
                 >
-
                   <Leaf
                     size={15}
                     className="text-emerald-400"
                   />
 
                   Tea / Field Weight
+
                   <span className="text-red-400">
                     *
                   </span>
-
                 </label>
 
                 <div className="relative">
-
                   <input
                     id="edit-tea-weight"
                     type="text"
@@ -722,34 +816,29 @@ export default function EditCollectionModal({
                   <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
                     KG
                   </span>
-
                 </div>
-
               </div>
 
               {/* FACTORY */}
 
               <div>
-
                 <label
                   htmlFor="edit-factory-weight"
                   className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
                 >
-
                   <Factory
                     size={15}
                     className="text-blue-400"
                   />
 
                   Factory Weight
+
                   <span className="text-red-400">
                     *
                   </span>
-
                 </label>
 
                 <div className="relative">
-
                   <input
                     id="edit-factory-weight"
                     type="text"
@@ -769,21 +858,15 @@ export default function EditCollectionModal({
                   <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
                     KG
                   </span>
-
                 </div>
-
               </div>
-
             </div>
 
             {/* DIFFERENCE */}
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-
               <div className="flex items-center justify-between">
-
                 <div className="flex items-center gap-2">
-
                   <Scale
                     size={17}
                     className="text-amber-400"
@@ -792,7 +875,6 @@ export default function EditCollectionModal({
                   <span className="text-sm font-medium text-slate-300">
                     Difference
                   </span>
-
                 </div>
 
                 <span
@@ -812,19 +894,17 @@ export default function EditCollectionModal({
                   )}{" "}
                   KG
                 </span>
-
               </div>
 
               <p className="mt-1 text-xs text-slate-600">
-                Factory Weight − Tea / Field Weight
+                Factory Weight − Tea /
+                Field Weight
               </p>
-
             </div>
 
             {/* NOTES */}
 
             <div>
-
               <label
                 htmlFor="edit-collection-notes"
                 className="mb-2 block text-sm font-medium text-slate-300"
@@ -848,17 +928,12 @@ export default function EditCollectionModal({
                 placeholder="Enter notes"
                 className="w-full resize-none rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 transition focus:border-emerald-500 disabled:opacity-60"
               />
-
             </div>
-
           </div>
 
-          {/* =================================================
-              FOOTER
-          ================================================= */}
+          {/* FOOTER */}
 
           <div className="sticky bottom-0 flex shrink-0 flex-col-reverse gap-3 border-t border-slate-800 bg-[#07140d] p-4 sm:flex-row sm:justify-end sm:px-6">
-
             <button
               type="button"
               onClick={handleClose}
@@ -873,38 +948,30 @@ export default function EditCollectionModal({
               disabled={
                 loading ||
                 areasLoading ||
-                areas.length === 0
+                !areaId ||
+                !date ||
+                teaWeight === "" ||
+                factoryWeight === ""
               }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-
               {loading ? (
-
                 <>
                   <Loader2
                     size={18}
                     className="animate-spin"
                   />
-
                   Updating...
-
                 </>
-
               ) : (
-
                 <>
                   <Save size={18} />
                   Save Changes
                 </>
-
               )}
-
             </button>
-
           </div>
-
         </form>
-
       </div>
     </div>
   );
