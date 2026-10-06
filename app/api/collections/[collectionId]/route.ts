@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 
@@ -15,16 +16,13 @@ interface RouteContext {
    SRI LANKA DAY RANGE
 ===================================================== */
 
-function getSriLankaDayRange(
-  dateString: string
-) {
+function getSriLankaDayRange(dateString: string) {
   const start = new Date(
     `${dateString}T00:00:00+05:30`
   );
 
   const end = new Date(
-    start.getTime() +
-      24 * 60 * 60 * 1000
+    start.getTime() + 24 * 60 * 60 * 1000
   );
 
   return {
@@ -40,8 +38,7 @@ function getSriLankaDayRange(
 async function getMongoCollection() {
   await connectDB();
 
-  const db =
-    mongoose.connection.db;
+  const db = mongoose.connection.db;
 
   if (!db) {
     throw new Error(
@@ -49,9 +46,7 @@ async function getMongoCollection() {
     );
   }
 
-  return db.collection(
-    "dailyareacollections"
-  );
+  return db.collection("dailyareacollections");
 }
 
 /* =====================================================
@@ -65,38 +60,35 @@ export async function GET(
   try {
     await requireAuth();
 
-    const collection =
-      await getMongoCollection();
+    const dbCollection = await getMongoCollection();
 
-    const { collectionId } =
-      await context.params;
+    const { collectionId } = await context.params;
 
-    console.log(
-      "DETAIL COLLECTION ID:",
-      collectionId
-    );
+    const cleanCollectionId = decodeURIComponent(
+      String(collectionId || "")
+    ).trim();
 
-    const document =
-      await collection.findOne({
-        collectionId,
-      });
+    if (!cleanCollectionId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Collection ID is required",
+        },
+        { status: 400 }
+      );
+    }
 
-    console.log(
-      "DETAIL COLLECTION FOUND:",
-      document
-    );
+    const document = await dbCollection.findOne({
+      collectionId: cleanCollectionId,
+    });
 
     if (!document) {
       return NextResponse.json(
         {
           success: false,
-
-          message:
-            "Tea collection not found",
+          message: "Tea collection not found",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       );
     }
 
@@ -104,47 +96,33 @@ export async function GET(
       success: true,
 
       collection: {
-        _id: String(
-          document._id
+        _id: String(document._id),
+
+        collectionId: document.collectionId,
+
+        date: document.date,
+
+        areaId: document.areaId || "",
+
+        areaName: document.areaName || "",
+
+        totalKg: Number(
+          document.totalKg ?? 0
         ),
 
-        collectionId:
-          document.collectionId,
+        factoryWeightKg: Number(
+          document.factoryWeightKg ?? 0
+        ),
 
-        date:
-          document.date,
+        differenceKg: Number(
+          document.differenceKg ?? 0
+        ),
 
-        areaId:
-          document.areaId,
+        notes: document.notes || "",
 
-        areaName:
-          document.areaName,
+        createdAt: document.createdAt,
 
-        totalKg:
-          Number(
-            document.totalKg ?? 0
-          ),
-
-        factoryWeightKg:
-          Number(
-            document.factoryWeightKg ??
-              0
-          ),
-
-        differenceKg:
-          Number(
-            document.differenceKg ??
-              0
-          ),
-
-        notes:
-          document.notes || "",
-
-        createdAt:
-          document.createdAt,
-
-        updatedAt:
-          document.updatedAt,
+        updatedAt: document.updatedAt,
       },
     });
   } catch (error) {
@@ -160,27 +138,21 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Authentication required.",
+          message: "Authentication required.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
     return NextResponse.json(
       {
         success: false,
-
         message:
           error instanceof Error
             ? error.message
             : "Failed to load tea collection",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
@@ -196,34 +168,90 @@ export async function PATCH(
   try {
     await requireAuth();
 
-    const collection =
+    const dbCollection =
       await getMongoCollection();
 
     const { collectionId } =
       await context.params;
 
-    const body =
-      await request.json();
-
-    const date =
-      String(
-        body.date || ""
+    const cleanCollectionId =
+      decodeURIComponent(
+        String(collectionId || "")
       ).trim();
 
-    const areaId =
+    /* =================================================
+       COLLECTION ID
+    ================================================= */
+
+    if (!cleanCollectionId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Collection ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
+       BODY
+    ================================================= */
+
+    let body: Record<string, unknown>;
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid request body",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
+       GET VALUES FROM BODY
+    ================================================= */
+
+    const date = String(
+      body.date ?? ""
+    ).trim();
+
+    const requestedAreaId =
       String(
-        body.areaId || ""
+        body.areaId ?? ""
       ).trim();
 
-    const totalKg =
+    const requestedAreaName =
+      String(
+        body.areaName ?? ""
+      ).trim();
+
+    /*
+      Tea / Field Weight
+    */
+    const totalKg = Number(
+      body.totalKg
+    );
+
+    /*
+      IMPORTANT:
+      Factory Weight comes from EDIT FORM.
+    */
+    const factoryWeightKg =
       Number(
-        body.totalKg
+        body.factoryWeightKg
       );
 
-    const notes =
-      String(
-        body.notes || ""
-      ).trim();
+    const notes = String(
+      body.notes ?? ""
+    ).trim();
+
+    /* =================================================
+       VALIDATION - DATE
+    ================================================= */
 
     if (!date) {
       return NextResponse.json(
@@ -232,108 +260,213 @@ export async function PATCH(
           message:
             "Collection date is required",
         },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (!areaId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Please select an area",
-        },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
     if (
-      !Number.isFinite(
-        totalKg
-      ) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(
+        date
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid collection date",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
+       VALIDATION - AREA
+    ================================================= */
+
+    if (!requestedAreaId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Please select an area",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
+       VALIDATION - TEA WEIGHT
+    ================================================= */
+
+    if (
+      !Number.isFinite(totalKg) ||
       totalKg <= 0
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Total tea KG must be greater than 0",
+            "Tea / Field Weight must be greater than 0",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    /* ===============================================
+    /* =================================================
+       VALIDATION - FACTORY WEIGHT
+    ================================================= */
+
+    if (
+      !Number.isFinite(
+        factoryWeightKg
+      ) ||
+      factoryWeightKg < 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Factory Weight must be 0 or greater",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
        FIND CURRENT COLLECTION
-    =============================================== */
+    ================================================= */
 
     const current =
-      await collection.findOne({
-        collectionId,
+      await dbCollection.findOne({
+        collectionId:
+          cleanCollectionId,
       });
 
     if (!current) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Tea collection not found",
+          message: "Tea collection not found",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       );
     }
 
-    /* ===============================================
-       FIND AREA
-    =============================================== */
+    /* =================================================
+       FIND AREA BY ID
+    ================================================= */
 
-    const area =
-      await Area.findOne({
-        areaId,
+    let area = await Area.findOne({
+      areaId: requestedAreaId,
+    }).lean();
 
-        status: "Active",
-      }).lean();
+    /* =================================================
+       FALLBACK AREA BY NAME
+    ================================================= */
+
+    if (
+      !area &&
+      requestedAreaName
+    ) {
+      area =
+        await Area.findOne({
+          name: {
+            $regex:
+              `^${requestedAreaName.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+              )}$`,
+            $options: "i",
+          },
+        }).lean();
+    }
+
+    /* =================================================
+       AREA NOT FOUND
+    ================================================= */
 
     if (!area) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Active area not found",
+          message: "Area not found",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       );
     }
 
-    /* ===============================================
-       DATE
-    =============================================== */
+    /* =================================================
+       INACTIVE AREA CHECK
+       
+       Existing inactive area can still be edited.
+       A different inactive area cannot be selected.
+    ================================================= */
+
+    const currentAreaId =
+      String(
+        current.areaId ?? ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const selectedAreaId =
+      String(
+        area.areaId ?? ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const isSameExistingArea =
+      currentAreaId ===
+      selectedAreaId;
+
+    if (
+      area.status === "Inactive" &&
+      !isSameExistingArea
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Selected area is inactive",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
+       DATE RANGE
+    ================================================= */
 
     const {
       start,
       end,
     } =
-      getSriLankaDayRange(
-        date
-      );
+      getSriLankaDayRange(date);
 
-    /* ===============================================
-       CHECK DUPLICATE AREA + DATE
-    =============================================== */
+    if (
+      Number.isNaN(
+        start.getTime()
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid collection date",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =================================================
+       DUPLICATE CHECK
+       
+       Same area + same date cannot have
+       another collection.
+    ================================================= */
 
     const duplicate =
-      await collection.findOne({
-        areaId,
+      await dbCollection.findOne({
+        areaId: area.areaId,
 
         date: {
           $gte: start,
@@ -341,7 +474,8 @@ export async function PATCH(
         },
 
         collectionId: {
-          $ne: collectionId,
+          $ne:
+            cleanCollectionId,
         },
       });
 
@@ -349,65 +483,147 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "A collection already exists for this area on this date",
         },
-        {
-          status: 409,
-        }
+        { status: 409 }
       );
     }
 
-    /* ===============================================
-       FACTORY WEIGHT
-    =============================================== */
-
-    const factoryWeightKg =
-      Number(
-        current.factoryWeightKg ??
-          0
-      );
+    /* =================================================
+       DIFFERENCE
+       
+       Factory Weight - Tea / Field Weight
+    ================================================= */
 
     const differenceKg =
-      totalKg -
-      factoryWeightKg;
+      Number(
+        (
+          factoryWeightKg -
+          totalKg
+        ).toFixed(2)
+      );
 
-    /* ===============================================
-       UPDATE
-    =============================================== */
+    /* =================================================
+       IMPORTANT DEBUG LOG
+    ================================================= */
 
-    await collection.updateOne(
+    console.log(
+      "EDIT COLLECTION DATA:",
       {
-        _id: current._id,
-      },
-
-      {
-        $set: {
-          date: start,
-
-          areaId:
-            area.areaId,
-
-          areaName:
-            area.name,
-
-          totalKg,
-
-          differenceKg,
-
-          notes,
-
-          updatedAt:
-            new Date(),
-        },
+        collectionId:
+          cleanCollectionId,
+        date,
+        areaId:
+          area.areaId,
+        areaName:
+          area.name,
+        totalKg,
+        factoryWeightKg,
+        differenceKg,
       }
     );
 
+    /* =================================================
+       UPDATE MONGODB
+    ================================================= */
+
+    const updateResult =
+      await dbCollection.updateOne(
+        {
+          _id:
+            current._id,
+        },
+        {
+          $set: {
+            date: start,
+
+            areaId:
+              String(
+                area.areaId
+              ).trim(),
+
+            areaName:
+              String(
+                area.name
+              ).trim(),
+
+            /*
+              Tea / Field Weight
+            */
+            totalKg,
+
+            /*
+              IMPORTANT:
+              SAVE NEW FACTORY WEIGHT
+              FROM EDIT FORM.
+            */
+            factoryWeightKg,
+
+            /*
+              AUTO CALCULATED DIFFERENCE
+            */
+            differenceKg,
+
+            notes,
+
+            updatedAt:
+              new Date(),
+          },
+        }
+      );
+
+    /* =================================================
+       UPDATE CHECK
+    ================================================= */
+
+    if (
+      updateResult.matchedCount ===
+      0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Collection could not be updated",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (
+      updateResult.modifiedCount ===
+      0
+    ) {
+      console.warn(
+        "Collection matched but no document was modified."
+      );
+    }
+
+    /* =================================================
+       GET UPDATED DOCUMENT
+    ================================================= */
+
     const updated =
-      await collection.findOne({
-        _id: current._id,
+      await dbCollection.findOne({
+        _id:
+          current._id,
       });
+
+    if (!updated) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Updated collection could not be loaded",
+        },
+        { status: 500 }
+      );
+    }
+
+    /* =================================================
+       SUCCESS RESPONSE
+    ================================================= */
 
     return NextResponse.json({
       success: true,
@@ -417,41 +633,46 @@ export async function PATCH(
 
       collection: {
         _id: String(
-          updated?._id
+          updated._id
         ),
 
         collectionId:
-          updated?.collectionId,
+          updated.collectionId,
 
         date:
-          updated?.date,
+          updated.date,
 
         areaId:
-          updated?.areaId,
+          updated.areaId || "",
 
         areaName:
-          updated?.areaName,
+          updated.areaName || "",
 
         totalKg:
           Number(
-            updated?.totalKg ??
-              0
+            updated.totalKg ?? 0
           ),
 
         factoryWeightKg:
           Number(
-            updated?.factoryWeightKg ??
+            updated.factoryWeightKg ??
               0
           ),
 
         differenceKg:
           Number(
-            updated?.differenceKg ??
+            updated.differenceKg ??
               0
           ),
 
         notes:
-          updated?.notes || "",
+          updated.notes || "",
+
+        createdAt:
+          updated.createdAt,
+
+        updatedAt:
+          updated.updatedAt,
       },
     });
   } catch (error) {
@@ -470,24 +691,19 @@ export async function PATCH(
           message:
             "Authentication required.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
     return NextResponse.json(
       {
         success: false,
-
         message:
           error instanceof Error
             ? error.message
             : "Failed to update collection",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
@@ -503,38 +719,50 @@ export async function DELETE(
   try {
     await requireAuth();
 
-    const collection =
+    const dbCollection =
       await getMongoCollection();
 
     const { collectionId } =
       await context.params;
 
+    const cleanCollectionId =
+      decodeURIComponent(
+        String(collectionId || "")
+      ).trim();
+
+    if (!cleanCollectionId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Collection ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
     const existing =
-      await collection.findOne({
-        collectionId,
+      await dbCollection.findOne({
+        collectionId:
+          cleanCollectionId,
       });
 
     if (!existing) {
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Tea collection not found",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       );
     }
 
-    await collection.deleteOne({
+    await dbCollection.deleteOne({
       _id: existing._id,
     });
 
     return NextResponse.json({
       success: true,
-
       message:
         "Collection deleted successfully",
     });
@@ -554,24 +782,19 @@ export async function DELETE(
           message:
             "Authentication required.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
     return NextResponse.json(
       {
         success: false,
-
         message:
           error instanceof Error
             ? error.message
             : "Failed to delete collection",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
