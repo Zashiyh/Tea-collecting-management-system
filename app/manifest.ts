@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Cooroonduwatte Tea",
     description: "Tea Factory Management System",
 
-    start_url: "/dashboard",
+    start_url: "/",
     scope: "/",
     display: "standalone",
 
