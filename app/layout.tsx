@@ -6,6 +6,12 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 export const metadata: Metadata = {
   title: "Cooroonduwatte Tea",
   description: "Tea Factory Management System",
+
+  icons: {
+    icon: "/logo.jpg",
+    shortcut: "/logo.jpg",
+    apple: "/logo.jpg",
+  },
 };
 
 export default function RootLayout({
