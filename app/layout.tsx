@@ -1,5 +1,5 @@
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
@@ -7,21 +7,41 @@ export const metadata: Metadata = {
   title: "Cooroonduwatte Tea",
   description: "Tea Factory Management System",
 
-  icons: {
-    icon: "/favicon-64.png",
-    shortcut: "/favicon-64.png",
-    apple: "/icons/apple-touch-icon.png",
-  },
+  applicationName: "Cooroonduwatte Tea",
 
   manifest: "/manifest.webmanifest",
 
-  appleWebApp: {
-    capable: true,
-    title: "Cooroonduwatte Tea",
-    statusBarStyle: "default",
+  icons: {
+    icon: [
+      {
+        url: "/icons/icon.svg",
+        type: "image/svg+xml",
+      },
+      {
+        url: "/favicon-64.png",
+        type: "image/png",
+        sizes: "64x64",
+      },
+    ],
+
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
   },
 
-  applicationName: "Cooroonduwatte Tea",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Cooroonduwatte Tea",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#020a06",
 };
 
 export default function RootLayout({
