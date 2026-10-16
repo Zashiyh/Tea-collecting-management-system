@@ -9,8 +9,6 @@ export const metadata: Metadata = {
 
   applicationName: "Cooroonduwatte Tea",
 
-  manifest: "/manifest.webmanifest",
-
   icons: {
     icon: [
       {
