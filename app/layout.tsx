@@ -6,6 +6,22 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 export const metadata: Metadata = {
   title: "Cooroonduwatte Tea",
   description: "Tea Factory Management System",
+
+  icons: {
+    icon: "/favicon-64.png",
+    shortcut: "/favicon-64.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+
+  manifest: "/manifest.webmanifest",
+
+  appleWebApp: {
+    capable: true,
+    title: "Cooroonduwatte Tea",
+    statusBarStyle: "default",
+  },
+
+  applicationName: "Cooroonduwatte Tea",
 };
 
 export default function RootLayout({
