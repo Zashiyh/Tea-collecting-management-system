@@ -6,22 +6,20 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 export const metadata: Metadata = {
   title: "Cooroonduwatte Tea",
   description: "Tea Factory Management System",
-
   applicationName: "Cooroonduwatte Tea",
+
+  manifest: "/manifest.webmanifest",
 
   icons: {
     icon: [
       {
+        url: "/icons/icon-192.png",
+      },
+      {
         url: "/icons/icon.svg",
         type: "image/svg+xml",
       },
-      {
-        url: "/favicon-64.png",
-        type: "image/png",
-        sizes: "64x64",
-      },
     ],
-
     apple: [
       {
         url: "/icons/apple-touch-icon.png",
@@ -50,9 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
