@@ -1,20 +1,26 @@
 
-import mongoose, { Schema, type Model } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-export type SupplierTransactionType =
-  | "ADVANCE"
-  | "LOAN"
-  | "FERTILIZER";
-
+export type SupplierTransactionType = "ADVANCE" | "LOAN" | "FERTILIZER";
 export type DeductionMode = "FULL" | "INSTALLMENT";
+export type InstallmentStatus = "PENDING" | "DEDUCTED";
+export type TransactionStatus = "ACTIVE" | "SETTLED" | "CANCELLED";
 
 export interface ILoanInstallment {
   monthKey: string;
   amount: number;
   deductedAmount: number;
-  status: "PENDING" | "DEDUCTED";
+  status: InstallmentStatus;
   settlementId?: string;
   deductedAt?: Date;
+}
+
+export interface ISupplierPayment {
+  paymentId: string;
+  amount: number;
+  paymentDate: Date;
+  notes?: string;
+  createdAt: Date;
 }
 
 export interface ISupplierAccountTransaction
@@ -27,43 +33,42 @@ export interface ISupplierAccountTransaction
   outstandingAmount: number;
   transactionDate: Date;
   deductionMode: DeductionMode;
-  firstDeductionMonth: string;
-  installmentMonths: number;
-  monthlyInstallmentAmount: number;
+  firstDeductionMonth?: string;
+  installmentMonths?: number;
+  monthlyInstallmentAmount?: number;
   installments: ILoanInstallment[];
-  fertilizerProductId?: string;
+  payments: ISupplierPayment[];
   fertilizerName?: string;
+  fertilizerProductId?: string;
   fertilizerQuantity?: number;
   fertilizerUnit?: string;
-  fertilizerUnitPrice?: number;
   notes?: string;
-  status: "ACTIVE" | "SETTLED" | "CANCELLED";
+  status: TransactionStatus;
 }
 
 const InstallmentSchema = new Schema<ILoanInstallment>(
   {
-    monthKey: {
-      type: String,
-      required: true,
-      match: /^\d{4}-(0[1-9]|1[0-2])$/,
-    },
-    amount: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    deductedAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+    monthKey: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0 },
+    deductedAmount: { type: Number, default: 0, min: 0 },
     status: {
       type: String,
       enum: ["PENDING", "DEDUCTED"],
       default: "PENDING",
     },
-    settlementId: String,
-    deductedAt: Date,
+    settlementId: { type: String },
+    deductedAt: { type: Date },
+  },
+  { _id: false }
+);
+
+const SupplierPaymentSchema = new Schema<ISupplierPayment>(
+  {
+    paymentId: { type: String, required: true },
+    amount: { type: Number, required: true, min: 0.01 },
+    paymentDate: { type: Date, required: true },
+    notes: { type: String, trim: true, maxlength: 500 },
+    createdAt: { type: Date, default: Date.now, required: true },
   },
   { _id: false }
 );
@@ -71,88 +76,42 @@ const InstallmentSchema = new Schema<ILoanInstallment>(
 const SupplierAccountTransactionSchema =
   new Schema<ISupplierAccountTransaction>(
     {
-      transactionId: {
-        type: String,
-        required: true,
-        unique: true,
-        index: true,
-      },
-      supplierId: {
-        type: String,
-        required: true,
-        index: true,
-      },
-      supplierName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
+      transactionId: { type: String, required: true, unique: true },
+      supplierId: { type: String, required: true, index: true },
+      supplierName: { type: String, required: true },
       type: {
         type: String,
         enum: ["ADVANCE", "LOAN", "FERTILIZER"],
         required: true,
       },
-      amount: {
-        type: Number,
-        required: true,
-        min: 0.01,
-      },
-      outstandingAmount: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-      transactionDate: {
-        type: Date,
-        required: true,
-        default: Date.now,
-      },
+      amount: { type: Number, required: true, min: 0.01 },
+      outstandingAmount: { type: Number, required: true, min: 0 },
+      transactionDate: { type: Date, default: Date.now },
       deductionMode: {
         type: String,
         enum: ["FULL", "INSTALLMENT"],
-        default: "FULL",
-      },
-      firstDeductionMonth: {
-        type: String,
         required: true,
-        match: /^\d{4}-(0[1-9]|1[0-2])$/,
       },
-      installmentMonths: {
-        type: Number,
-        default: 1,
-        min: 1,
-        max: 120,
-      },
-      monthlyInstallmentAmount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
+      firstDeductionMonth: { type: String },
+      installmentMonths: { type: Number, min: 1 },
+      monthlyInstallmentAmount: { type: Number, min: 0 },
       installments: {
         type: [InstallmentSchema],
         default: [],
       },
-      fertilizerProductId: String,
-      fertilizerName: String,
-      fertilizerQuantity: {
-        type: Number,
-        min: 0,
+      payments: {
+        type: [SupplierPaymentSchema],
+        default: [],
       },
-      fertilizerUnit: String,
-      fertilizerUnitPrice: {
-        type: Number,
-        min: 0,
-      },
-      notes: {
-        type: String,
-        trim: true,
-        maxlength: 1000,
-      },
+      fertilizerName: { type: String, trim: true },
+      fertilizerProductId: { type: String },
+      fertilizerQuantity: { type: Number, min: 0 },
+      fertilizerUnit: { type: String },
+      notes: { type: String, trim: true, maxlength: 1000 },
       status: {
         type: String,
         enum: ["ACTIVE", "SETTLED", "CANCELLED"],
         default: "ACTIVE",
-        index: true,
       },
     },
     { timestamps: true }
@@ -163,7 +122,7 @@ SupplierAccountTransactionSchema.index({
   transactionDate: -1,
 });
 
-const SupplierAccountTransaction: Model<ISupplierAccountTransaction> =
+const SupplierAccountTransaction =
   mongoose.models.SupplierAccountTransaction ||
   mongoose.model<ISupplierAccountTransaction>(
     "SupplierAccountTransaction",

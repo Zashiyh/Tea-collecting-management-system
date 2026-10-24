@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { requireAdmin } from "@/lib/auth";
+import { randomUUID } from "crypto";
 
 import Supplier from "@/models/Supplier";
 import SupplierTeaCollection from "@/models/SupplierTeaCollection";
@@ -9,9 +10,27 @@ import MonthlyTeaRate from "@/models/MonthlyTeaRate";
 import SupplierAccountTransaction from "@/models/SupplierAccountTransaction";
 import SupplierMonthlySettlement from "@/models/SupplierMonthlySettlement";
 
-import { randomUUID } from "crypto";
-
 export const runtime = "nodejs";
+
+type InstallmentForCalculation = {
+  monthKey: string;
+  amount: number;
+  deductedAmount?: number;
+  status?: string;
+};
+
+type TransactionForCalculation = {
+  transactionId: string;
+  type: "ADVANCE" | "LOAN" | "FERTILIZER";
+  supplierId: string;
+  outstandingAmount?: number;
+  deductionMode: "FULL" | "INSTALLMENT";
+  firstDeductionMonth?: string;
+  transactionDate?: Date;
+  createdAt?: Date;
+  installments?: InstallmentForCalculation[];
+  fertilizerName?: string;
+};
 
 function isValidMonthKey(value: string) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
@@ -20,7 +39,6 @@ function isValidMonthKey(value: string) {
 function getMonthRange(monthKey: string) {
   const [year, month] = monthKey.split("-").map(Number);
 
-  // Sri Lanka local month boundaries (UTC+05:30).
   const start = new Date(
     `${year}-${String(month).padStart(2, "0")}-01T00:00:00+05:30`
   );
@@ -48,7 +66,10 @@ function errorResponse(error: unknown) {
 
   if (message === "FORBIDDEN") {
     return NextResponse.json(
-      { success: false, message: "Administrator access is required." },
+      {
+        success: false,
+        message: "Administrator access is required.",
+      },
       { status: 403 }
     );
   }
@@ -56,7 +77,10 @@ function errorResponse(error: unknown) {
   console.error("Supplier settlement API error:", error);
 
   return NextResponse.json(
-    { success: false, message: "Failed to process settlement." },
+    {
+      success: false,
+      message: "Failed to process settlement.",
+    },
     { status: 500 }
   );
 }
@@ -84,7 +108,10 @@ export async function GET(request: NextRequest) {
     if (monthKey) {
       if (!isValidMonthKey(monthKey)) {
         return NextResponse.json(
-          { success: false, message: "Invalid monthKey. Use YYYY-MM." },
+          {
+            success: false,
+            message: "Invalid monthKey. Use YYYY-MM.",
+          },
           { status: 400 }
         );
       }
@@ -114,14 +141,8 @@ export async function GET(request: NextRequest) {
  * POST
  * Calculate and save a DRAFT settlement.
  *
- * Body:
- * {
- *   "supplierId": "SUP-001",
- *   "monthKey": "2026-10"
- * }
- *
- * This endpoint never deducts transaction balances.
- * Finalization will be handled by a separate endpoint.
+ * This endpoint does not deduct transaction balances.
+ * Finalization must apply deductions separately.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -131,16 +152,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const supplierId =
-      typeof body.supplierId === "string" ? body.supplierId.trim() : "";
+      typeof body.supplierId === "string"
+        ? body.supplierId.trim()
+        : "";
 
     const monthKey =
-      typeof body.monthKey === "string" ? body.monthKey.trim() : "";
+      typeof body.monthKey === "string"
+        ? body.monthKey.trim()
+        : "";
 
     if (!supplierId || !isValidMonthKey(monthKey)) {
       return NextResponse.json(
         {
           success: false,
-          message: "supplierId and a valid monthKey (YYYY-MM) are required.",
+          message:
+            "supplierId and a valid monthKey (YYYY-MM) are required.",
         },
         { status: 400 }
       );
@@ -153,12 +179,15 @@ export async function POST(request: NextRequest) {
 
     if (!supplier) {
       return NextResponse.json(
-        { success: false, message: "Active supplier was not found." },
+        {
+          success: false,
+          message: "Active supplier was not found.",
+        },
         { status: 404 }
       );
     }
 
-    // Never recalculate a finalized or paid historical settlement.
+    // Do not recalculate a finalized or paid settlement.
     const existing = await SupplierMonthlySettlement.findOne({
       supplierId,
       monthKey,
@@ -167,15 +196,19 @@ export async function POST(request: NextRequest) {
     if (existing && existing.status !== "DRAFT") {
       return NextResponse.json({
         success: true,
-        message: "This settlement is already finalized and cannot be recalculated.",
+        message:
+          "This settlement is already finalized and cannot be recalculated.",
         settlement: existing,
         unchanged: true,
       });
     }
 
-    // Prefer a supplier-specific rate; otherwise use the factory default.
+    // Prefer the supplier-specific rate; otherwise use the factory default.
     const rateRecord =
-      (await MonthlyTeaRate.findOne({ monthKey, supplierId }).lean()) ||
+      (await MonthlyTeaRate.findOne({
+        monthKey,
+        supplierId,
+      }).lean()) ||
       (await MonthlyTeaRate.findOne({
         monthKey,
         supplierId: "__DEFAULT__",
@@ -214,14 +247,17 @@ export async function POST(request: NextRequest) {
     const ratePerKg = Number(rateRecord.ratePerKg);
     const grossAmount = Number((totalKg * ratePerKg).toFixed(2));
 
-    // Load active debts that have reached their first deduction month.
-    const transactions = await SupplierAccountTransaction.find({
+    // Load active debts eligible for deductions in this month.
+    const rawTransactions = await SupplierAccountTransaction.find({
       supplierId,
       status: "ACTIVE",
       firstDeductionMonth: { $lte: monthKey },
     })
       .sort({ transactionDate: 1, createdAt: 1 })
       .lean();
+
+    const transactions =
+      rawTransactions as unknown as TransactionForCalculation[];
 
     let remainingGross = grossAmount;
     let totalDeductions = 0;
@@ -238,7 +274,7 @@ export async function POST(request: NextRequest) {
 
       const outstanding = Math.max(
         0,
-        Number(transaction.outstandingAmount || 0)
+        Number(transaction.outstandingAmount ?? 0)
       );
 
       if (outstanding <= 0) continue;
@@ -246,32 +282,48 @@ export async function POST(request: NextRequest) {
       let amountDue = 0;
 
       if (transaction.deductionMode === "FULL") {
-        // Deduct as much as the current gross can cover.
         amountDue = outstanding;
       } else {
-        // Only unpaid installments scheduled for this month or earlier
-        // are due. Future installments are not deducted early.
-        const installments = transaction.installments || [];
+        // Include only unpaid installments scheduled for this month or earlier.
+        const installments: InstallmentForCalculation[] =
+          transaction.installments ?? [];
 
-        amountDue = installments.reduce((sum, installment) => {
-          if (
-            installment.monthKey <= monthKey &&
-            installment.status !== "DEDUCTED"
-          ) {
-            const unpaid = Math.max(
-              0,
-              Number(installment.amount || 0) -
-                Number(installment.deductedAmount || 0)
-            );
+        amountDue = installments.reduce(
+          (sum: number, installment: InstallmentForCalculation) => {
+            if (
+              installment.monthKey <= monthKey &&
+              installment.status !== "DEDUCTED"
+            ) {
+              const installmentAmount = Math.max(
+                0,
+                Number(installment.amount ?? 0)
+              );
 
-            return sum + unpaid;
-          }
+              const alreadyPaid = Math.max(
+                0,
+                Number(installment.deductedAmount ?? 0)
+              );
 
-          return sum;
-        }, 0);
+              const unpaid = Math.max(
+                0,
+                installmentAmount - alreadyPaid
+              );
+
+              return sum + unpaid;
+            }
+
+            return sum;
+          },
+          0
+        );
       }
 
-      amountDue = Math.min(amountDue, outstanding, remainingGross);
+      amountDue = Math.min(
+        amountDue,
+        outstanding,
+        remainingGross
+      );
+
       amountDue = Number(amountDue.toFixed(2));
 
       if (amountDue <= 0) continue;
@@ -321,7 +373,7 @@ export async function POST(request: NextRequest) {
     let settlement;
 
     if (existing) {
-      // Update only DRAFT records. No transaction balance is changed here.
+      // Update DRAFT only. This does not change transaction balances.
       existing.set(settlementData);
       settlement = await existing.save();
     } else {

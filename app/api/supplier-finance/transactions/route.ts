@@ -7,7 +7,6 @@ import { requireAdmin } from "@/lib/auth";
 
 import Supplier from "@/models/Supplier";
 import SupplierAccountTransaction from "@/models/SupplierAccountTransaction";
-import FertilizerProduct from "@/models/FertilizerProduct";
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -53,7 +52,9 @@ export async function GET(request: Request) {
 
     const filter: Record<string, unknown> = {};
 
-    if (supplierId) filter.supplierId = supplierId;
+    if (supplierId) {
+      filter.supplierId = supplierId;
+    }
 
     if (
       type &&
@@ -82,8 +83,12 @@ export async function GET(request: Request) {
     if (response) return response;
 
     console.error("SUPPLIER TRANSACTION GET ERROR:", error);
+
     return NextResponse.json(
-      { success: false, message: "Failed to load transactions." },
+      {
+        success: false,
+        message: "Failed to load transactions.",
+      },
       { status: 500 }
     );
   }
@@ -97,9 +102,12 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const supplierId =
-      typeof body.supplierId === "string" ? body.supplierId.trim() : "";
+      typeof body.supplierId === "string"
+        ? body.supplierId.trim()
+        : "";
 
     const type = body.type as TransactionType;
+
     const deductionMode =
       (body.deductionMode || "FULL") as DeductionMode;
 
@@ -110,21 +118,30 @@ export async function POST(request: Request) {
 
     if (!supplierId) {
       return NextResponse.json(
-        { success: false, message: "supplierId is required." },
+        {
+          success: false,
+          message: "Please select a supplier.",
+        },
         { status: 400 }
       );
     }
 
     if (!["ADVANCE", "LOAN", "FERTILIZER"].includes(type)) {
       return NextResponse.json(
-        { success: false, message: "Invalid transaction type." },
+        {
+          success: false,
+          message: "Invalid transaction type.",
+        },
         { status: 400 }
       );
     }
 
     if (!["FULL", "INSTALLMENT"].includes(deductionMode)) {
       return NextResponse.json(
-        { success: false, message: "Invalid deduction mode." },
+        {
+          success: false,
+          message: "Invalid deduction method.",
+        },
         { status: 400 }
       );
     }
@@ -133,7 +150,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "firstDeductionMonth must use YYYY-MM format.",
+          message: "Select a valid first deduction month.",
         },
         { status: 400 }
       );
@@ -146,63 +163,24 @@ export async function POST(request: Request) {
 
     if (!supplier) {
       return NextResponse.json(
-        { success: false, message: "Active supplier not found." },
+        {
+          success: false,
+          message: "Active supplier not found.",
+        },
         { status: 404 }
       );
     }
 
-    let amount = Number(body.amount);
-    let fertilizerProductId: string | undefined;
-    let fertilizerName: string | undefined;
-    let fertilizerQuantity: number | undefined;
-    let fertilizerUnit: string | undefined;
-    let fertilizerUnitPrice: number | undefined;
-
-    if (type === "FERTILIZER") {
-      fertilizerProductId =
-        typeof body.fertilizerProductId === "string"
-          ? body.fertilizerProductId.trim()
-          : "";
-
-      fertilizerQuantity = Number(body.fertilizerQuantity);
-
-      if (
-        !fertilizerProductId ||
-        !Number.isFinite(fertilizerQuantity) ||
-        fertilizerQuantity <= 0
-      ) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "A fertilizer product and valid quantity are required.",
-          },
-          { status: 400 }
-        );
-      }
-
-      const product = await FertilizerProduct.findOne({
-        productId: fertilizerProductId,
-        status: "ACTIVE",
-      }).lean();
-
-      if (!product) {
-        return NextResponse.json(
-          { success: false, message: "Active fertilizer product not found." },
-          { status: 404 }
-        );
-      }
-
-      fertilizerName = product.name;
-      fertilizerUnit = product.unit;
-      fertilizerUnitPrice = Number(product.currentPrice);
-      amount = Number(
-        (fertilizerQuantity * fertilizerUnitPrice).toFixed(2)
-      );
-    }
+    // All transaction types use the amount entered in the Amount field.
+    // Fertilizer does not require a product selection or quantity.
+    const amount = Number(body.amount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Amount must be greater than zero." },
+        {
+          success: false,
+          message: "Amount must be greater than zero.",
+        },
         { status: 400 }
       );
     }
@@ -220,14 +198,10 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "installmentMonths must be between 1 and 120.",
+          message: "Installment months must be between 1 and 120.",
         },
         { status: 400 }
       );
-    }
-
-    if (deductionMode === "INSTALLMENT" && type === "FERTILIZER") {
-      // Fertilizer is recorded as a debt. Installments are supported.
     }
 
     const monthlyInstallmentAmount = Number(
@@ -237,15 +211,19 @@ export async function POST(request: Request) {
     const installments =
       deductionMode === "INSTALLMENT"
         ? Array.from({ length: installmentMonths }, (_, index) => {
-            const monthKey = addMonths(firstDeductionMonth, index);
+            const monthKey = addMonths(
+              firstDeductionMonth,
+              index
+            );
 
-            // Make the final installment absorb rounding differences.
+            // Adjust the final installment to account for rounding.
             const scheduledAmount =
               index === installmentMonths - 1
                 ? Number(
                     (
                       amount -
-                      monthlyInstallmentAmount * (installmentMonths - 1)
+                      monthlyInstallmentAmount *
+                        (installmentMonths - 1)
                     ).toFixed(2)
                   )
                 : monthlyInstallmentAmount;
@@ -265,7 +243,10 @@ export async function POST(request: Request) {
 
     if (Number.isNaN(transactionDate.getTime())) {
       return NextResponse.json(
-        { success: false, message: "Invalid transactionDate." },
+        {
+          success: false,
+          message: "Invalid transaction date.",
+        },
         { status: 400 }
       );
     }
@@ -283,12 +264,10 @@ export async function POST(request: Request) {
       installmentMonths,
       monthlyInstallmentAmount,
       installments,
-      fertilizerProductId,
-      fertilizerName,
-      fertilizerQuantity,
-      fertilizerUnit,
-      fertilizerUnitPrice,
-      notes: typeof body.notes === "string" ? body.notes.trim() : "",
+      notes:
+        typeof body.notes === "string"
+          ? body.notes.trim()
+          : "",
       status: "ACTIVE",
     });
 
@@ -305,8 +284,12 @@ export async function POST(request: Request) {
     if (response) return response;
 
     console.error("SUPPLIER TRANSACTION POST ERROR:", error);
+
     return NextResponse.json(
-      { success: false, message: "Failed to record supplier transaction." },
+      {
+        success: false,
+        message: "Failed to record supplier transaction.",
+      },
       { status: 500 }
     );
   }
