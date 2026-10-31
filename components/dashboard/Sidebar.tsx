@@ -104,7 +104,7 @@ export default function Sidebar({
           >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
               <Image
-                src="/logo.jpg"
+                src="/logo.png"
                 alt="Cooroonduwatte Tea Logo"
                 width={44}
                 height={44}

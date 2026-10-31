@@ -93,7 +93,7 @@ export default function LoginPage() {
 
             {/* Logo - No Box */}
             <img
-              src="/logo.jpg"
+              src="/logo.png"
               alt="Cooroonduwatte Tea Logo"
               className="mx-auto h-24 w-auto object-contain"
             />
