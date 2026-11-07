@@ -888,7 +888,7 @@ export default function DashboardPage() {
                 </section>
 
                 {/* =================================================
-                    EXISTING PERIOD TOTALS
+                    PERIOD TOTALS - SELECTED PERIOD FACTORY WEIGHT
                 ================================================= */}
 
                 <section className="mt-5">
@@ -898,94 +898,30 @@ export default function DashboardPage() {
                     </h2>
 
                     <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
-                      Cumulative values from the displayed period
+                      Total factory weight for the selected period
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  <div className="rounded-xl border border-blue-500/10 bg-blue-500/5 p-3.5 sm:p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-blue-400/70">
+                        Total Factory Weight
+                      </span>
 
-                    {/* FIELD */}
-
-                    <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3.5 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-emerald-500/70">
-                          Total Field Weight
-                        </span>
-
-                        <Leaf
-                          size={15}
-                          className="text-emerald-500/70"
-                        />
-                      </div>
-
-                      <p className="mt-1.5 text-xl font-bold text-emerald-400 sm:text-2xl">
-                        {formatNumber(
-                          summary?.totalTeaWeightKg || 0
-                        )}
-                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
-                          KG
-                        </span>
-                      </p>
+                      <Factory
+                        size={15}
+                        className="text-blue-400/70"
+                      />
                     </div>
 
-                    {/* FACTORY */}
-
-                    <div className="rounded-xl border border-blue-500/10 bg-blue-500/5 p-3.5 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-400/70">
-                          Total Factory Weight
-                        </span>
-
-                        <Factory
-                          size={15}
-                          className="text-blue-400/70"
-                        />
-                      </div>
-
-                      <p className="mt-1.5 text-xl font-bold text-blue-400 sm:text-2xl">
-                        {formatNumber(
-                          summary?.totalFactoryWeightKg || 0
-                        )}
-                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
-                          KG
-                        </span>
-                      </p>
-                    </div>
-
-                    {/* DIFFERENCE */}
-
-                    <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3.5 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-amber-400/70">
-                          Total Difference
-                        </span>
-
-                        <Scale
-                          size={15}
-                          className="text-amber-400/70"
-                        />
-                      </div>
-
-                      <p
-                        className={`mt-1.5 text-xl font-bold sm:text-2xl ${
-                          (summary?.totalDifferenceKg || 0) > 0
-                            ? "text-cyan-400"
-                            : (summary?.totalDifferenceKg || 0) < 0
-                              ? "text-red-400"
-                              : "text-emerald-400"
-                        }`}
-                      >
-                        {(summary?.totalDifferenceKg || 0) > 0
-                          ? "+"
-                          : ""}
-                        {formatNumber(
-                          summary?.totalDifferenceKg || 0
-                        )}
-                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
-                          KG
-                        </span>
-                      </p>
-                    </div>
+                    <p className="mt-1.5 text-xl font-bold text-blue-400 sm:text-2xl">
+                      {formatNumber(
+                        monthlySummary?.totalFactoryWeightKg || 0
+                      )}
+                      <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                        KG
+                      </span>
+                    </p>
                   </div>
                 </section>
 
