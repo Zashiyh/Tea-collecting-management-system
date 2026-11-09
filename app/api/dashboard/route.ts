@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
@@ -7,7 +8,7 @@ import DailyAreaCollection from "@/models/DailyAreaCollection";
 const START_DATE = "2026-10-01";
 
 /* =========================================================
-   SRI LANKA DAY RANGE
+   SRI LANKA DATE HELPERS
 ========================================================= */
 
 function getSriLankaDayRange(dateString: string) {
@@ -16,10 +17,6 @@ function getSriLankaDayRange(dateString: string) {
 
   return { start, end };
 }
-
-/* =========================================================
-   DATE HELPERS
-========================================================= */
 
 function getTodaySriLanka() {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -36,10 +33,17 @@ function getTodaySriLanka() {
   return `${year}-${month}-${day}`;
 }
 
+/* =========================================================
+   VALIDATION HELPERS
+========================================================= */
+
 function isValidDateString(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
 
   const [year, month, day] = value.split("-").map(Number);
+
   const date = new Date(Date.UTC(year, month - 1, day));
 
   return (
@@ -49,29 +53,73 @@ function isValidDateString(value: string) {
   );
 }
 
-function getCalendarMonthRange(selectedDate: string) {
-  const [year, month] = selectedDate.split("-").map(Number);
+function isValidMonth(month: number) {
+  return Number.isInteger(month) && month >= 1 && month <= 12;
+}
 
+function isValidYear(year: number) {
+  return Number.isInteger(year) && year >= 1900 && year <= 9999;
+}
+
+/* =========================================================
+   CALENDAR MONTH RANGE
+
+   Example:
+   month = 11
+   year  = 2026
+
+   Returns:
+   fromDate = 2026-11-01
+   toDate   = 2026-11-30
+
+   Records before START_DATE are excluded.
+========================================================= */
+
+function getCalendarMonthRange(year: number, month: number) {
   const monthStartString = `${year}-${String(month).padStart(2, "0")}-01`;
-  const nextMonthDate = new Date(Date.UTC(year, month, 1));
-  const nextMonthStartString = `${nextMonthDate.getUTCFullYear()}-${String(
-    nextMonthDate.getUTCMonth() + 1
-  ).padStart(2, "0")}-01`;
-  const lastDayDate = new Date(nextMonthDate.getTime() - 24 * 60 * 60 * 1000);
-  const lastDayString = `${lastDayDate.getUTCFullYear()}-${String(
-    lastDayDate.getUTCMonth() + 1
-  ).padStart(2, "0")}-${String(lastDayDate.getUTCDate()).padStart(2, "0")}`;
 
-  // Do not include dates before the system's configured start date.
+  const nextMonthDate = new Date(Date.UTC(year, month, 1));
+
+  const nextMonthStartString = [
+    nextMonthDate.getUTCFullYear(),
+    String(nextMonthDate.getUTCMonth() + 1).padStart(2, "0"),
+    "01",
+  ].join("-");
+
+  const lastDayDate = new Date(
+    nextMonthDate.getTime() - 24 * 60 * 60 * 1000
+  );
+
+  const lastDayString = [
+    lastDayDate.getUTCFullYear(),
+    String(lastDayDate.getUTCMonth() + 1).padStart(2, "0"),
+    String(lastDayDate.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+
   const effectiveStartString =
-    monthStartString < START_DATE ? START_DATE : monthStartString;
+    monthStartString < START_DATE
+      ? START_DATE
+      : monthStartString;
+
+  const effectiveEndString =
+    nextMonthStartString < START_DATE
+      ? START_DATE
+      : nextMonthStartString;
 
   return {
     fromDate: effectiveStartString,
     toDate: lastDayString,
     start: getSriLankaDayRange(effectiveStartString).start,
-    end: getSriLankaDayRange(nextMonthStartString).start,
+    end: getSriLankaDayRange(effectiveEndString).start,
   };
+}
+
+/* =========================================================
+   NUMBER HELPER
+========================================================= */
+
+function round2(value: number) {
+  return Number(value.toFixed(2));
 }
 
 /* =========================================================
@@ -83,59 +131,127 @@ export async function GET(request: Request) {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
-    const requestedDate = searchParams.get("date") || getTodaySriLanka();
+
+    /* =====================================================
+       SELECTED DAILY DATE
+    ===================================================== */
+
+    const requestedDate =
+      searchParams.get("date") || getTodaySriLanka();
+
     const selectedDate = isValidDateString(requestedDate)
       ? requestedDate
       : getTodaySriLanka();
 
-    /* =======================================================
+    /* =====================================================
+       SELECTED MONTH AND YEAR
+
+       If month/year are not provided, use the month
+       containing the selected daily date.
+    ===================================================== */
+
+    const dateParts = selectedDate.split("-").map(Number);
+
+    const defaultYear = dateParts[0];
+    const defaultMonth = dateParts[1];
+
+    const requestedMonth = searchParams.get("month");
+    const requestedYear = searchParams.get("year");
+
+    const selectedMonth =
+      requestedMonth !== null
+        ? Number(requestedMonth)
+        : defaultMonth;
+
+    const selectedYear =
+      requestedYear !== null
+        ? Number(requestedYear)
+        : defaultYear;
+
+    if (
+      !isValidMonth(selectedMonth) ||
+      !isValidYear(selectedYear)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid month or year.",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =====================================================
        DATE RANGES
-    ======================================================= */
+    ===================================================== */
 
-    const cumulativeStart = getSriLankaDayRange(START_DATE).start;
-    const { start: selectedDayStart, end: selectedDayEnd } =
-      getSriLankaDayRange(selectedDate);
+    const cumulativeStart =
+      getSriLankaDayRange(START_DATE).start;
 
-    // Calendar month containing the selected date.
-    // Example: selecting 2026-11-07 calculates November totals.
-    const monthRange = getCalendarMonthRange(selectedDate);
+    const {
+      start: selectedDayStart,
+      end: selectedDayEnd,
+    } = getSriLankaDayRange(selectedDate);
 
-    /* =======================================================
+    // Selected calendar month.
+    const monthRange = getCalendarMonthRange(
+      selectedYear,
+      selectedMonth
+    );
+
+    /* =====================================================
        ACTIVE AREAS
-    ======================================================= */
+    ===================================================== */
 
-    const areas = await Area.find({ status: "Active" })
+    const areas = await Area.find({
+      status: "Active",
+    })
       .sort({ name: 1 })
       .lean();
 
-    /* =======================================================
+    /* =====================================================
        COLLECTION QUERIES
-    ======================================================= */
+    ===================================================== */
 
-    const [cumulativeCollections, todayCollections, monthCollections] =
-      await Promise.all([
-        DailyAreaCollection.find({
-          date: { $gte: cumulativeStart, $lt: selectedDayEnd },
-        })
-          .sort({ date: 1 })
-          .lean(),
+    const [
+      cumulativeCollections,
+      todayCollections,
+      monthCollections,
+    ] = await Promise.all([
+      // Cumulative records from system start to selected date.
+      DailyAreaCollection.find({
+        date: {
+          $gte: cumulativeStart,
+          $lt: selectedDayEnd,
+        },
+      })
+        .sort({ date: 1 })
+        .lean(),
 
-        DailyAreaCollection.find({
-          date: { $gte: selectedDayStart, $lt: selectedDayEnd },
-        })
-          .sort({ date: 1 })
-          .lean(),
+      // Records for selected daily date.
+      DailyAreaCollection.find({
+        date: {
+          $gte: selectedDayStart,
+          $lt: selectedDayEnd,
+        },
+      })
+        .sort({ date: 1 })
+        .lean(),
 
-        DailyAreaCollection.find({
-          date: { $gte: monthRange.start, $lt: monthRange.end },
-        })
-          .sort({ date: 1 })
-          .lean(),
-      ]);
+      // All records for selected calendar month.
+      DailyAreaCollection.find({
+        date: {
+          $gte: monthRange.start,
+          $lt: monthRange.end,
+        },
+      })
+        .sort({ date: 1 })
+        .lean(),
+    ]);
 
-    /* =======================================================
+    /* =====================================================
        AREA MAPS
-    ======================================================= */
+    ===================================================== */
 
     const cumulativeAreaMap = new Map<
       string,
@@ -181,102 +297,135 @@ export async function GET(request: Request) {
       });
     }
 
-    /* =======================================================
+    /* =====================================================
        PROCESS CUMULATIVE COLLECTIONS
-    ======================================================= */
+    ===================================================== */
 
     for (const collection of cumulativeCollections) {
-      const areaData = cumulativeAreaMap.get(collection.areaId);
+      const areaData = cumulativeAreaMap.get(
+        collection.areaId
+      );
+
       if (!areaData) continue;
 
-      areaData.totalTeaWeightKg += Number(collection.totalKg || 0);
+      areaData.totalTeaWeightKg += Number(
+        collection.totalKg || 0
+      );
+
       areaData.totalFactoryWeightKg += Number(
         collection.factoryWeightKg || 0
       );
+
       areaData.collectionCount += 1;
-      areaData.latestCollectionId = collection.collectionId;
+
+      areaData.latestCollectionId =
+        collection.collectionId;
     }
 
-    /* =======================================================
+    /* =====================================================
        PROCESS SELECTED-DATE COLLECTIONS
-    ======================================================= */
+    ===================================================== */
 
     for (const collection of todayCollections) {
-      const areaData = todayAreaMap.get(collection.areaId);
+      const areaData = todayAreaMap.get(
+        collection.areaId
+      );
+
       if (!areaData) continue;
 
-      areaData.todayTeaWeightKg += Number(collection.totalKg || 0);
+      areaData.todayTeaWeightKg += Number(
+        collection.totalKg || 0
+      );
+
       areaData.todayFactoryWeightKg += Number(
         collection.factoryWeightKg || 0
       );
+
       areaData.todayCollectionCount += 1;
-      areaData.latestCollectionId = collection.collectionId;
+
+      areaData.latestCollectionId =
+        collection.collectionId;
     }
 
-    /* =======================================================
-       CUMULATIVE TOTALS: START DATE -> SELECTED DATE
-    ======================================================= */
+    /* =====================================================
+       CUMULATIVE TOTALS
+    ===================================================== */
 
-    const cumulativeAreas = Array.from(cumulativeAreaMap.values());
+    const cumulativeAreas = Array.from(
+      cumulativeAreaMap.values()
+    );
 
     const totalTeaWeightKg = cumulativeAreas.reduce(
-      (total, area) => total + area.totalTeaWeightKg,
+      (total, area) =>
+        total + area.totalTeaWeightKg,
       0
     );
 
     const totalFactoryWeightKg = cumulativeAreas.reduce(
-      (total, area) => total + area.totalFactoryWeightKg,
+      (total, area) =>
+        total + area.totalFactoryWeightKg,
       0
     );
 
-    const totalDifferenceKg = Number(
-      (totalFactoryWeightKg - totalTeaWeightKg).toFixed(2)
+    const totalDifferenceKg = round2(
+      totalFactoryWeightKg - totalTeaWeightKg
     );
 
     const totalCollections = cumulativeAreas.reduce(
-      (total, area) => total + area.collectionCount,
+      (total, area) =>
+        total + area.collectionCount,
       0
     );
 
-    /* =======================================================
+    /* =====================================================
        SELECTED-DATE TOTALS
-    ======================================================= */
+    ===================================================== */
 
-    const todayAreas = Array.from(todayAreaMap.values());
+    const todayAreas = Array.from(
+      todayAreaMap.values()
+    );
 
     const todayTeaWeightKg = todayAreas.reduce(
-      (total, area) => total + area.todayTeaWeightKg,
+      (total, area) =>
+        total + area.todayTeaWeightKg,
       0
     );
 
     const todayFactoryWeightKg = todayAreas.reduce(
-      (total, area) => total + area.todayFactoryWeightKg,
+      (total, area) =>
+        total + area.todayFactoryWeightKg,
       0
     );
 
-    const todayDifferenceKg = Number(
-      (todayFactoryWeightKg - todayTeaWeightKg).toFixed(2)
+    const todayDifferenceKg = round2(
+      todayFactoryWeightKg - todayTeaWeightKg
     );
 
     const todayCollectionCount = todayAreas.reduce(
-      (total, area) => total + area.todayCollectionCount,
+      (total, area) =>
+        total + area.todayCollectionCount,
       0
     );
 
-    /* =======================================================
+    /* =====================================================
        SELECTED MONTH TOTALS
 
-       Full calendar month containing selectedDate.
-       The query includes all records in that calendar month.
-    ======================================================= */
+       Calculates the complete selected calendar month.
+       This is independent of the selected daily date.
+    ===================================================== */
 
     const monthTotals = monthCollections.reduce(
       (totals, collection) => {
-        totals.totalTeaWeightKg += Number(collection.totalKg || 0);
+        totals.totalTeaWeightKg += Number(
+          collection.totalKg || 0
+        );
+
         totals.totalFactoryWeightKg += Number(
           collection.factoryWeightKg || 0
         );
+
         totals.totalCollections += 1;
+
         return totals;
       },
       {
@@ -287,78 +436,109 @@ export async function GET(request: Request) {
     );
 
     const monthSummary = {
+      month: selectedMonth,
+      year: selectedYear,
+
       fromDate: monthRange.fromDate,
-      toDate: selectedDate,
-      totalTeaWeightKg: Number(monthTotals.totalTeaWeightKg.toFixed(2)),
-      totalFactoryWeightKg: Number(
-        monthTotals.totalFactoryWeightKg.toFixed(2)
+      toDate: monthRange.toDate,
+
+      totalTeaWeightKg: round2(
+        monthTotals.totalTeaWeightKg
       ),
-      totalDifferenceKg: Number(
-        (
-          monthTotals.totalFactoryWeightKg -
+
+      totalFactoryWeightKg: round2(
+        monthTotals.totalFactoryWeightKg
+      ),
+
+      totalDifferenceKg: round2(
+        monthTotals.totalFactoryWeightKg -
           monthTotals.totalTeaWeightKg
-        ).toFixed(2)
       ),
+
       totalCollections: monthTotals.totalCollections,
     };
 
-    /* =======================================================
+    /* =====================================================
        SELECTED-DATE AREA DATA
-    ======================================================= */
+    ===================================================== */
 
     const dashboardAreas = todayAreas.map((area) => ({
       areaId: area.areaId,
       areaName: area.areaName,
-      todayTeaWeightKg: Number(area.todayTeaWeightKg.toFixed(2)),
-      todayFactoryWeightKg: Number(area.todayFactoryWeightKg.toFixed(2)),
-      todayDifferenceKg: Number(
-        (area.todayFactoryWeightKg - area.todayTeaWeightKg).toFixed(2)
+
+      todayTeaWeightKg: round2(
+        area.todayTeaWeightKg
       ),
-      todayCollectionCount: area.todayCollectionCount,
-      latestCollectionId: area.latestCollectionId,
+
+      todayFactoryWeightKg: round2(
+        area.todayFactoryWeightKg
+      ),
+
+      todayDifferenceKg: round2(
+        area.todayFactoryWeightKg -
+          area.todayTeaWeightKg
+      ),
+
+      todayCollectionCount:
+        area.todayCollectionCount,
+
+      latestCollectionId:
+        area.latestCollectionId,
     }));
 
     const collectedAreas = dashboardAreas.filter(
       (area) => area.todayCollectionCount > 0
     ).length;
 
-    /* =======================================================
+    /* =====================================================
        RESPONSE
-    ======================================================= */
+    ===================================================== */
 
     return NextResponse.json(
       {
         success: true,
+
         date: selectedDate,
+
         fromDate: START_DATE,
         toDate: selectedDate,
 
         today: {
-          teaWeightKg: Number(todayTeaWeightKg.toFixed(2)),
-          factoryWeightKg: Number(todayFactoryWeightKg.toFixed(2)),
+          teaWeightKg: round2(todayTeaWeightKg),
+          factoryWeightKg: round2(todayFactoryWeightKg),
           differenceKg: todayDifferenceKg,
           collectionCount: todayCollectionCount,
         },
 
-        // Existing cumulative summary is preserved.
+        // Existing cumulative summary.
         summary: {
           totalAreas: areas.length,
           collectedAreas,
-          totalTeaWeightKg: Number(totalTeaWeightKg.toFixed(2)),
-          totalFactoryWeightKg: Number(totalFactoryWeightKg.toFixed(2)),
+
+          totalTeaWeightKg: round2(
+            totalTeaWeightKg
+          ),
+
+          totalFactoryWeightKg: round2(
+            totalFactoryWeightKg
+          ),
+
           totalDifferenceKg,
+
           totalCollections,
         },
 
-        // New calendar-month totals for the Period Totals cards.
+        // Selected month summary.
         monthSummary,
 
+        // Selected daily area information.
         areas: dashboardAreas,
       },
       {
         status: 200,
         headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate",
         },
       }
     );
@@ -368,19 +548,24 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
+
         message:
           error instanceof Error
             ? error.message
             : "Failed to load dashboard",
+
         date: "",
+
         fromDate: START_DATE,
         toDate: "",
+
         today: {
           teaWeightKg: 0,
           factoryWeightKg: 0,
           differenceKg: 0,
           collectionCount: 0,
         },
+
         summary: {
           totalAreas: 0,
           collectedAreas: 0,
@@ -389,7 +574,10 @@ export async function GET(request: Request) {
           totalDifferenceKg: 0,
           totalCollections: 0,
         },
+
         monthSummary: {
+          month: 0,
+          year: 0,
           fromDate: "",
           toDate: "",
           totalTeaWeightKg: 0,
@@ -397,6 +585,7 @@ export async function GET(request: Request) {
           totalDifferenceKg: 0,
           totalCollections: 0,
         },
+
         areas: [],
       },
       { status: 500 }

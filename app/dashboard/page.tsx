@@ -55,6 +55,8 @@ interface DashboardResponse {
   };
 
   monthSummary: {
+    month?: number;
+    year?: number;
     fromDate: string;
     toDate: string;
     totalTeaWeightKg: number;
@@ -66,7 +68,6 @@ interface DashboardResponse {
   areas: AreaCollection[];
 }
 
-type MonthlyPeriod = "1m" | "2m" | "3m" | "6m" | "12m" | "all";
 
 /* =========================================================
    HELPERS
@@ -132,17 +133,22 @@ function getDifferenceStatus(difference: number) {
   };
 }
 
-const MONTHLY_PERIOD_OPTIONS: {
-  value: MonthlyPeriod;
-  label: string;
-}[] = [
-  { value: "1m", label: "After 1 Month" },
-  { value: "2m", label: "After 2 Months" },
-  { value: "3m", label: "After 3 Months" },
-  { value: "6m", label: "After 6 Months" },
-  { value: "12m", label: "After 12 Months" },
-  { value: "all", label: "All Time" },
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
+
+const SYSTEM_START_YEAR = 2026;
 
 /* =========================================================
    DASHBOARD
@@ -158,8 +164,9 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   // Monthly overview state
-  const [selectedMonthlyPeriod, setSelectedMonthlyPeriod] =
-    useState<MonthlyPeriod>("1m");
+  const initialMonthlyDate = getTodaySriLanka().split("-").map(Number);
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthlyDate[1]);
+  const [selectedYear, setSelectedYear] = useState(initialMonthlyDate[0]);
 
   const [monthlyData, setMonthlyData] =
     useState<DashboardResponse | null>(null);
@@ -218,13 +225,13 @@ export default function DashboardPage() {
      FETCH MONTHLY OVERVIEW
   ======================================================= */
 
-  async function fetchMonthlyDashboard(period: MonthlyPeriod) {
+  async function fetchMonthlyDashboard(month: number, year: number) {
     try {
       setMonthlyLoading(true);
       setMonthlyError("");
 
       const response = await fetch(
-        `/api/dashboard?period=${encodeURIComponent(period)}`,
+        `/api/dashboard?month=${encodeURIComponent(month)}&year=${encodeURIComponent(year)}`,
         {
           method: "GET",
           cache: "no-store",
@@ -282,13 +289,13 @@ export default function DashboardPage() {
   }, [selectedDate]);
 
   /* =======================================================
-     MONTHLY PERIOD CHANGE
+     MONTH AND YEAR CHANGE
   ======================================================= */
 
   useEffect(() => {
-    fetchMonthlyDashboard(selectedMonthlyPeriod);
+    fetchMonthlyDashboard(selectedMonth, selectedYear);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonthlyPeriod]);
+  }, [selectedMonth, selectedYear]);
 
   /* =======================================================
      DAILY DATA
@@ -302,12 +309,13 @@ export default function DashboardPage() {
      MONTHLY DATA
   ======================================================= */
 
-  const monthlySummary = monthlyData?.summary;
-
-  const monthlyPeriodLabel =
-    MONTHLY_PERIOD_OPTIONS.find(
-      (option) => option.value === selectedMonthlyPeriod
-    )?.label || "Monthly Overview";
+  const monthlySummary = monthlyData?.monthSummary;
+  const monthlyPeriodLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`;
+  const currentSriLankaYear = Number(getTodaySriLanka().slice(0, 4));
+  const availableYears = Array.from(
+    { length: Math.max(1, currentSriLankaYear - SYSTEM_START_YEAR + 1) },
+    (_, index) => SYSTEM_START_YEAR + index
+  );
 
   /* =======================================================
      FIXED BAR SCALE
@@ -995,32 +1003,46 @@ export default function DashboardPage() {
                       </h2>
 
                       <p className="mt-0.5 text-[10px] text-slate-600 sm:text-xs">
-                        Factory weight summary for the selected period.
+                        View collection totals for each month of the year.
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <CalendarDays
-                        size={16}
-                        className="shrink-0 text-slate-500"
-                      />
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          size={16}
+                          className="shrink-0 text-slate-500"
+                        />
+
+                        <select
+                          aria-label="Select month"
+                          value={selectedMonth}
+                          onChange={(event) =>
+                            setSelectedMonth(Number(event.target.value))
+                          }
+                          className="h-10 min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#07140d] px-3 text-sm text-white outline-none transition focus:border-emerald-500 sm:w-[155px]"
+                          style={{ colorScheme: "dark" }}
+                        >
+                          {MONTH_NAMES.map((month, index) => (
+                            <option key={month} value={index + 1}>
+                              {month}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
                       <select
-                        value={selectedMonthlyPeriod}
+                        aria-label="Select year"
+                        value={selectedYear}
                         onChange={(event) =>
-                          setSelectedMonthlyPeriod(
-                            event.target.value as MonthlyPeriod
-                          )
+                          setSelectedYear(Number(event.target.value))
                         }
-                        className="h-10 w-full min-w-0 rounded-lg border border-slate-800 bg-[#07140d] px-3 text-sm text-white outline-none transition focus:border-emerald-500 sm:w-[190px]"
+                        className="h-10 w-full rounded-lg border border-slate-800 bg-[#07140d] px-3 text-sm text-white outline-none transition focus:border-emerald-500 sm:w-[105px]"
                         style={{ colorScheme: "dark" }}
                       >
-                        {MONTHLY_PERIOD_OPTIONS.map((option) => (
-                          <option
-                            key={option.value}
-                            value={option.value}
-                          >
-                            {option.label}
+                        {availableYears.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
                           </option>
                         ))}
                       </select>
@@ -1028,20 +1050,17 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          fetchMonthlyDashboard(
-                            selectedMonthlyPeriod
-                          )
+                          fetchMonthlyDashboard(selectedMonth, selectedYear)
                         }
                         disabled={monthlyLoading}
                         aria-label="Refresh monthly overview"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-[#07140d] text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50"
+                        className="flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-800 bg-[#07140d] px-3 text-slate-400 transition hover:border-emerald-500/40 hover:text-white disabled:opacity-50 sm:w-10 sm:px-0"
                       >
                         <RefreshCw
                           size={15}
-                          className={
-                            monthlyLoading ? "animate-spin" : ""
-                          }
+                          className={monthlyLoading ? "animate-spin" : ""}
                         />
+                        <span className="text-xs sm:hidden">Refresh</span>
                       </button>
                     </div>
                   </div>
@@ -1055,9 +1074,13 @@ export default function DashboardPage() {
                       </span>
 
                       <span>
-                        {formatDateForDisplay(monthlyData.fromDate)}{" "}
-                        –{" "}
-                        {formatDateForDisplay(monthlyData.toDate)}
+                        {monthlyData.monthSummary?.fromDate
+                          ? formatDateForDisplay(monthlyData.monthSummary.fromDate)
+                          : ""}
+                        {" – "}
+                        {monthlyData.monthSummary?.toDate
+                          ? formatDateForDisplay(monthlyData.monthSummary.toDate)
+                          : ""}
                       </span>
                     </div>
                   )}
@@ -1071,9 +1094,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          fetchMonthlyDashboard(
-                            selectedMonthlyPeriod
-                          )
+                          fetchMonthlyDashboard(selectedMonth, selectedYear)
                         }
                         className="w-fit rounded-lg border border-red-500/20 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10"
                       >
