@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -68,7 +67,6 @@ interface DashboardResponse {
   areas: AreaCollection[];
 }
 
-
 /* =========================================================
    HELPERS
 ========================================================= */
@@ -113,23 +111,20 @@ function getDifferenceStatus(difference: number) {
   if (difference === 0) {
     return {
       label: "Matched",
-      className:
-        "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+      className: "text-emerald-400",
     };
   }
 
   if (difference > 0) {
     return {
       label: "Factory More",
-      className:
-        "border-cyan-500/20 bg-cyan-500/10 text-cyan-400",
+      className: "text-cyan-400",
     };
   }
 
   return {
     label: "Factory Less",
-    className:
-      "border-red-500/20 bg-red-500/10 text-red-400",
+    className: "text-red-400",
   };
 }
 
@@ -165,6 +160,7 @@ export default function DashboardPage() {
 
   // Monthly overview state
   const initialMonthlyDate = getTodaySriLanka().split("-").map(Number);
+
   const [selectedMonth, setSelectedMonth] = useState(initialMonthlyDate[1]);
   const [selectedYear, setSelectedYear] = useState(initialMonthlyDate[0]);
 
@@ -269,15 +265,6 @@ export default function DashboardPage() {
   }
 
   /* =======================================================
-     INITIAL LOAD
-  ======================================================= */
-
-  useEffect(() => {
-    fetchDashboard(selectedDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* =======================================================
      DAILY DATE CHANGE
   ======================================================= */
 
@@ -285,6 +272,7 @@ export default function DashboardPage() {
     if (!selectedDate) return;
 
     fetchDashboard(selectedDate);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
@@ -294,6 +282,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchMonthlyDashboard(selectedMonth, selectedYear);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, selectedYear]);
 
@@ -310,19 +299,23 @@ export default function DashboardPage() {
   ======================================================= */
 
   const monthlySummary = monthlyData?.monthSummary;
-  const monthlyPeriodLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`;
-  const currentSriLankaYear = Number(getTodaySriLanka().slice(0, 4));
-  const availableYears = Array.from(
-    { length: Math.max(1, currentSriLankaYear - SYSTEM_START_YEAR + 1) },
-    (_, index) => SYSTEM_START_YEAR + index
+
+  const monthlyPeriodLabel =
+    `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`;
+
+  const currentSriLankaYear = Number(
+    getTodaySriLanka().slice(0, 4)
   );
 
-  /* =======================================================
-     FIXED BAR SCALE
-     1000 KG = 100% FULL
-  ======================================================= */
-
-  const maxWeight = 1000;
+  const availableYears = Array.from(
+    {
+      length: Math.max(
+        1,
+        currentSriLankaYear - SYSTEM_START_YEAR + 1
+      ),
+    },
+    (_, index) => SYSTEM_START_YEAR + index
+  );
 
   /* =======================================================
      PAGE
@@ -345,7 +338,7 @@ export default function DashboardPage() {
                 HEADER
             ================================================= */}
 
-            <div className="mb-5 flex flex-col gap-4 lg:mb-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
                   Cooroonduwatte Tea Factory
@@ -375,7 +368,7 @@ export default function DashboardPage() {
                     onChange={(event) =>
                       setSelectedDate(event.target.value)
                     }
-                    className="h-10 w-full rounded-lg border border-slate-800 bg-[#07140d] pl-9 pr-2 text-sm text-white outline-none transition focus:border-emerald-500 sm:h-10 sm:w-[170px] sm:pr-3"
+                    className="h-10 w-full rounded-lg border border-slate-800 bg-[#07140d] pl-9 pr-2 text-sm text-white outline-none transition focus:border-emerald-500 sm:w-[170px] sm:pr-3"
                     style={{ colorScheme: "dark" }}
                   />
                 </div>
@@ -418,12 +411,13 @@ export default function DashboardPage() {
             ================================================= */}
 
             {loading && !data ? (
-              <div className="flex min-h-[380px] items-center justify-center rounded-2xl border border-slate-800 bg-[#07140d]">
+              <div className="flex min-h-[300px] items-center justify-center">
                 <div className="text-center">
                   <Loader2
                     size={30}
                     className="mx-auto animate-spin text-emerald-500"
                   />
+
                   <p className="mt-3 text-xs text-slate-600">
                     Loading factory data...
                   </p>
@@ -432,113 +426,91 @@ export default function DashboardPage() {
             ) : (
               <>
                 {/* =================================================
-                    DAILY MAIN SUMMARY
+                    TODAY'S OVERVIEW - NORMAL LAYOUT
                 ================================================= */}
 
-                <section>
-                  <div className="mb-3 flex items-center justify-between">
+                <section className="mb-8">
+                  <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h2 className="text-base font-semibold text-white sm:text-lg">
                         Today&apos;s Overview
                       </h2>
 
-                      <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
+                      <p className="mt-1 text-xs text-slate-600">
                         Selected date performance
                       </p>
                     </div>
 
-                    <span className="rounded-md bg-slate-900 px-2.5 py-1 text-[10px] text-slate-600 sm:text-xs">
+                    <span className="text-xs text-slate-500">
                       {formatDateForDisplay(
                         data?.date || selectedDate
                       )}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-6 border-y border-slate-800 py-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+                    {/* FIELD WEIGHT */}
 
-                    {/* FIELD */}
+                    <div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <Leaf
+                          size={16}
+                          className="text-emerald-400"
+                        />
 
-                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-emerald-500/20 sm:p-4">
-                      <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-500">
                           Field Weight
                         </span>
-
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
-                          <Leaf size={15} />
-                        </div>
                       </div>
 
-                      <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
+                      <p className="text-xl font-bold text-emerald-400 sm:text-2xl">
                         {formatNumber(today?.teaWeightKg || 0)}
-                        <span className="ml-1 text-[10px] font-medium text-slate-600 sm:text-xs">
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           KG
                         </span>
                       </p>
-
-                      <div className="mt-2 border-t border-slate-800 pt-2">
-                        <span className="text-[10px] text-slate-700 sm:text-xs">
-                          Period total
-                        </span>
-
-                        <p className="mt-0.5 text-xs font-medium text-emerald-400/80 sm:text-sm">
-                          {formatNumber(
-                            summary?.totalTeaWeightKg || 0
-                          )}{" "}
-                          KG
-                        </p>
-                      </div>
                     </div>
 
-                    {/* FACTORY */}
+                    {/* FACTORY WEIGHT */}
 
-                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-blue-500/20 sm:p-4">
-                      <div className="flex items-center justify-between">
+                    <div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <Factory
+                          size={16}
+                          className="text-blue-400"
+                        />
+
                         <span className="text-xs text-slate-500">
                           Factory Weight
                         </span>
-
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
-                          <Factory size={15} />
-                        </div>
                       </div>
 
-                      <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
+                      <p className="text-xl font-bold text-blue-400 sm:text-2xl">
                         {formatNumber(today?.factoryWeightKg || 0)}
-                        <span className="ml-1 text-[10px] font-medium text-slate-600 sm:text-xs">
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           KG
                         </span>
                       </p>
-
-                      <div className="mt-2 border-t border-slate-800 pt-2">
-                        <span className="text-[10px] text-slate-700 sm:text-xs">
-                          Period total
-                        </span>
-
-                        <p className="mt-0.5 text-xs font-medium text-blue-400/80 sm:text-sm">
-                          {formatNumber(
-                            summary?.totalFactoryWeightKg || 0
-                          )}{" "}
-                          KG
-                        </p>
-                      </div>
                     </div>
 
                     {/* DIFFERENCE */}
 
-                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-cyan-500/20 sm:p-4">
-                      <div className="flex items-center justify-between">
+                    <div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <Scale
+                          size={16}
+                          className="text-amber-400"
+                        />
+
                         <span className="text-xs text-slate-500">
                           Weight Difference
                         </span>
-
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
-                          <Scale size={15} />
-                        </div>
                       </div>
 
                       <p
-                        className={`mt-2 text-xl font-bold sm:text-2xl ${
+                        className={`text-xl font-bold sm:text-2xl ${
                           (today?.differenceKg || 0) > 0
                             ? "text-cyan-400"
                             : (today?.differenceKg || 0) < 0
@@ -548,425 +520,284 @@ export default function DashboardPage() {
                       >
                         {(today?.differenceKg || 0) > 0 ? "+" : ""}
                         {formatNumber(today?.differenceKg || 0)}
-                        <span className="ml-1 text-[10px] font-medium text-slate-600 sm:text-xs">
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           KG
                         </span>
                       </p>
-
-                      <div className="mt-2 border-t border-slate-800 pt-2">
-                        <span className="text-[10px] text-slate-700 sm:text-xs">
-                          Period total
-                        </span>
-
-                        <p
-                          className={`mt-0.5 text-xs font-medium sm:text-sm ${
-                            (summary?.totalDifferenceKg || 0) > 0
-                              ? "text-cyan-400/80"
-                              : (summary?.totalDifferenceKg || 0) < 0
-                                ? "text-red-400/80"
-                                : "text-emerald-400/80"
-                          }`}
-                        >
-                          {(summary?.totalDifferenceKg || 0) > 0
-                            ? "+"
-                            : ""}
-                          {formatNumber(
-                            summary?.totalDifferenceKg || 0
-                          )}{" "}
-                          KG
-                        </p>
-                      </div>
                     </div>
 
                     {/* AREAS */}
 
-                    <div className="rounded-xl border border-slate-800 bg-[#07140d] p-3.5 transition hover:border-purple-500/20 sm:p-4">
-                      <div className="flex items-center justify-between">
+                    <div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <Users
+                          size={16}
+                          className="text-purple-400"
+                        />
+
                         <span className="text-xs text-slate-500">
                           Areas
                         </span>
-
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400">
-                          <Users size={15} />
-                        </div>
                       </div>
 
-                      <p className="mt-2 text-xl font-bold text-white sm:text-2xl">
+                      <p className="text-xl font-bold text-purple-400 sm:text-2xl">
                         {summary?.collectedAreas || 0}
-                        <span className="ml-1 text-xs font-medium text-slate-600 sm:text-sm">
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           / {summary?.totalAreas || 0}
                         </span>
                       </p>
 
-                      <div className="mt-2 border-t border-slate-800 pt-2">
-                        <span className="text-[10px] text-slate-700 sm:text-xs">
-                          Total collections
-                        </span>
-
-                        <p className="mt-0.5 text-xs font-medium text-purple-400/80 sm:text-sm">
-                          {formatNumber(
-                            summary?.totalCollections || 0
-                          )}
-                        </p>
-                      </div>
+                      <p className="mt-1 text-[10px] text-slate-600">
+                        {formatNumber(summary?.totalCollections || 0)}{" "}
+                        collections
+                      </p>
                     </div>
                   </div>
                 </section>
 
                 {/* =================================================
-                    DAILY AREA COLLECTIONS
+                    AREA COLLECTIONS - NORMAL DETAILS
                 ================================================= */}
 
-                <section className="mt-5">
-                  <div className="mb-3 flex items-end justify-between">
+                <section className="mt-7">
+                  <div className="mb-4 flex items-end justify-between">
                     <div>
                       <h2 className="text-base font-semibold text-white sm:text-lg">
                         Area Collections
                       </h2>
 
-                      <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
-                        Click an area to view its details
+                      <p className="mt-1 text-xs text-slate-600">
+                        Collection details for the selected date
                       </p>
                     </div>
 
-                    <span className="text-[10px] text-slate-700 sm:text-xs">
+                    <span className="text-xs text-slate-600">
                       {areas.length} area
                       {areas.length === 1 ? "" : "s"}
                     </span>
                   </div>
 
-                  <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#07140d]">
+                  {areas.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <Leaf
+                        size={24}
+                        className="mx-auto text-slate-700"
+                      />
 
-                    {/* TABLE HEADER */}
+                      <p className="mt-3 text-sm font-medium text-slate-500">
+                        No collection recorded
+                      </p>
 
-                    <div className="hidden grid-cols-[minmax(170px,1.2fr)_minmax(180px,1.8fr)_minmax(180px,1.8fr)_120px] items-center border-b border-slate-800 bg-[#0a1910] px-4 py-3 md:grid lg:px-5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                        Area
-                      </span>
-
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                        Field Weight
-                      </span>
-
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                        Factory Weight
-                      </span>
-
-                      <span className="text-right text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                        Status
-                      </span>
+                      <p className="mt-1 text-xs text-slate-700">
+                        Select another date to view its collections.
+                      </p>
                     </div>
+                  ) : (
+                    <div className="divide-y divide-slate-800 border-y border-slate-800">
+                      {areas.map((area) => {
+                        const fieldWeight = Number(
+                          area.todayTeaWeightKg || 0
+                        );
 
-                    {/* NO DATA */}
+                        const factoryWeight = Number(
+                          area.todayFactoryWeightKg || 0
+                        );
 
-                    {areas.length === 0 ? (
-                      <div className="flex min-h-[240px] items-center justify-center p-6 text-center">
-                        <div>
-                          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-slate-700">
-                            <Leaf size={20} />
-                          </div>
+                        const difference = Number(
+                          area.todayDifferenceKg || 0
+                        );
 
-                          <p className="mt-3 text-sm font-medium text-slate-500">
-                            No collection recorded
-                          </p>
+                        const collectionCount = Number(
+                          area.todayCollectionCount || 0
+                        );
 
-                          <p className="mt-1 text-xs text-slate-700">
-                            Select another date to view its collections.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-slate-800/70">
-                        {areas.map((area) => {
-                          const todayField = Number(
-                            area.todayTeaWeightKg || 0
-                          );
+                        const status = getDifferenceStatus(difference);
 
-                          const todayFactory = Number(
-                            area.todayFactoryWeightKg || 0
-                          );
+                        return (
+                          <Link
+                            key={area.areaId}
+                            href={`/dashboard/areas/${encodeURIComponent(
+                              area.areaId
+                            )}?date=${encodeURIComponent(
+                              data?.date || selectedDate
+                            )}`}
+                            className="group block py-4 transition hover:bg-slate-900/20"
+                          >
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                              {/* AREA NAME */}
 
-                          const todayDifference = Number(
-                            area.todayDifferenceKg || 0
-                          );
+                              <div className="flex min-w-0 items-center gap-3 lg:w-[25%]">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+                                  <Leaf size={17} />
+                                </div>
 
-                          const todayCollections = Number(
-                            area.todayCollectionCount || 0
-                          );
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-white">
+                                    {area.areaName}
+                                  </p>
 
-                          const status =
-                            getDifferenceStatus(todayDifference);
-
-                          const fieldWidth =
-                            todayField > 0
-                              ? Math.min(
-                                  100,
-                                  Math.max(
-                                    3,
-                                    (todayField / maxWeight) * 100
-                                  )
-                                )
-                              : 0;
-
-                          const factoryWidth =
-                            todayFactory > 0
-                              ? Math.min(
-                                  100,
-                                  Math.max(
-                                    3,
-                                    (todayFactory / maxWeight) * 100
-                                  )
-                                )
-                              : 0;
-
-                          return (
-                            <Link
-                              key={area.areaId}
-                              href={`/dashboard/areas/${encodeURIComponent(
-                                area.areaId
-                              )}?date=${encodeURIComponent(
-                                data?.date || selectedDate
-                              )}`}
-                              className="group block transition hover:bg-slate-900/25"
-                            >
-                              <div className="p-3.5 sm:p-4 lg:px-5">
-                                <div className="grid gap-4 md:grid-cols-[minmax(170px,1.2fr)_minmax(180px,1.8fr)_minmax(180px,1.8fr)_120px] md:items-center">
-
-                                  {/* AREA */}
-
-                                  <div className="flex min-w-0 items-center gap-3">
-                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-[10px] font-bold text-emerald-400 sm:h-10 sm:w-10 sm:text-xs">
-                                      <Leaf size={15} />
-                                    </div>
-
-                                    <div className="min-w-0">
-                                      <p className="truncate text-sm font-semibold text-white sm:text-base">
-                                        {area.areaName}
-                                      </p>
-
-                                      <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
-                                        {todayCollections} collection
-                                        {todayCollections !== 1 ? "s" : ""}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {/* MOBILE */}
-
-                                  <div className="md:hidden">
-                                    <div className="mb-2 flex items-center justify-between">
-                                      <span className="text-[10px] font-medium text-slate-600">
-                                        Field Weight
-                                      </span>
-
-                                      <span className="text-[10px] font-semibold text-emerald-400">
-                                        {formatNumber(todayField)} KG
-                                      </span>
-                                    </div>
-
-                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
-                                      <div
-                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                        style={{ width: `${fieldWidth}%` }}
-                                      />
-                                    </div>
-
-                                    <div className="mb-2 mt-3 flex items-center justify-between">
-                                      <span className="text-[10px] font-medium text-slate-600">
-                                        Factory Weight
-                                      </span>
-
-                                      <span className="text-[10px] font-semibold text-blue-400">
-                                        {formatNumber(todayFactory)} KG
-                                      </span>
-                                    </div>
-
-                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
-                                      <div
-                                        className="h-full rounded-full bg-blue-500 transition-all duration-500"
-                                        style={{ width: `${factoryWidth}%` }}
-                                      />
-                                    </div>
-
-                                    <div className="mt-3 flex items-center justify-between">
-                                      <div>
-                                        <span className="text-[10px] text-slate-600">
-                                          Difference
-                                        </span>
-
-                                        <p
-                                          className={`mt-0.5 text-xs font-semibold ${
-                                            todayDifference > 0
-                                              ? "text-cyan-400"
-                                              : todayDifference < 0
-                                                ? "text-red-400"
-                                                : "text-emerald-400"
-                                          }`}
-                                        >
-                                          {todayDifference > 0 ? "+" : ""}
-                                          {formatNumber(todayDifference)} KG
-                                        </p>
-                                      </div>
-
-                                      <div className="flex items-center gap-2">
-                                        <span
-                                          className={`rounded-md border px-2 py-1 text-[9px] font-medium ${status.className}`}
-                                        >
-                                          {status.label}
-                                        </span>
-
-                                        <ArrowRight
-                                          size={14}
-                                          className="text-slate-700 transition group-hover:translate-x-1 group-hover:text-emerald-400"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* DESKTOP FIELD */}
-
-                                  <div className="hidden md:block">
-                                    <div className="mb-1.5 flex items-center justify-between">
-                                      <span className="text-[10px] text-slate-600">
-                                        Field
-                                      </span>
-
-                                      <span className="text-xs font-semibold text-emerald-400">
-                                        {formatNumber(todayField)} KG
-                                      </span>
-                                    </div>
-
-                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
-                                      <div
-                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                        style={{ width: `${fieldWidth}%` }}
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* DESKTOP FACTORY */}
-
-                                  <div className="hidden md:block">
-                                    <div className="mb-1.5 flex items-center justify-between">
-                                      <span className="text-[10px] text-slate-600">
-                                        Factory
-                                      </span>
-
-                                      <span className="text-xs font-semibold text-blue-400">
-                                        {formatNumber(todayFactory)} KG
-                                      </span>
-                                    </div>
-
-                                    <div className="h-2 overflow-hidden rounded-full bg-slate-900">
-                                      <div
-                                        className="h-full rounded-full bg-blue-500 transition-all duration-500"
-                                        style={{ width: `${factoryWidth}%` }}
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* DESKTOP STATUS */}
-
-                                  <div className="hidden items-end justify-end gap-2 md:flex">
-                                    <div className="text-right">
-                                      <p
-                                        className={`text-xs font-semibold ${
-                                          todayDifference > 0
-                                            ? "text-cyan-400"
-                                            : todayDifference < 0
-                                              ? "text-red-400"
-                                              : "text-emerald-400"
-                                        }`}
-                                      >
-                                        {todayDifference > 0 ? "+" : ""}
-                                        {formatNumber(todayDifference)} KG
-                                      </p>
-
-                                      <span
-                                        className={`mt-1 inline-flex rounded-md border px-2 py-1 text-[9px] font-medium ${status.className}`}
-                                      >
-                                        {status.label}
-                                      </span>
-                                    </div>
-
-                                    <ArrowRight
-                                      size={14}
-                                      className="text-slate-700 transition group-hover:translate-x-1 group-hover:text-emerald-400"
-                                    />
-                                  </div>
+                                  <p className="mt-1 text-xs text-slate-600">
+                                    {collectionCount} collection
+                                    {collectionCount !== 1 ? "s" : ""}
+                                  </p>
                                 </div>
                               </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+
+                              {/* WEIGHT DETAILS */}
+
+                              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:flex lg:flex-1 lg:items-center lg:justify-around">
+                                <div>
+                                  <p className="text-[10px] text-slate-600">
+                                    Field Weight
+                                  </p>
+
+                                  <p className="mt-1 text-sm font-semibold text-emerald-400">
+                                    {formatNumber(fieldWeight)} KG
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <p className="text-[10px] text-slate-600">
+                                    Factory Weight
+                                  </p>
+
+                                  <p className="mt-1 text-sm font-semibold text-blue-400">
+                                    {formatNumber(factoryWeight)} KG
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <p className="text-[10px] text-slate-600">
+                                    Difference
+                                  </p>
+
+                                  <p
+                                    className={`mt-1 text-sm font-semibold ${
+                                      difference > 0
+                                        ? "text-cyan-400"
+                                        : difference < 0
+                                          ? "text-red-400"
+                                          : "text-emerald-400"
+                                    }`}
+                                  >
+                                    {difference > 0 ? "+" : ""}
+                                    {formatNumber(difference)} KG
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* STATUS */}
+
+                              <div className="flex items-center justify-between gap-3 lg:w-[140px] lg:justify-end">
+                                <span
+                                  className={`text-xs font-medium ${status.className}`}
+                                >
+                                  {status.label}
+                                </span>
+
+                                <ArrowRight
+                                  size={15}
+                                  className="text-slate-700 transition group-hover:translate-x-1 group-hover:text-emerald-400"
+                                />
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </section>
 
                 {/* =================================================
-                    PERIOD TOTALS - SELECTED PERIOD TOTALS
+                    PERIOD TOTALS
                 ================================================= */}
 
-                <section className="mt-5">
-                  <div className="mb-3">
+                <section className="mt-8">
+                  <div className="mb-4">
                     <h2 className="text-base font-semibold text-white sm:text-lg">
                       Period Totals
                     </h2>
 
-                    <p className="mt-0.5 text-[10px] text-slate-700 sm:text-xs">
+                    <p className="mt-1 text-xs text-slate-600">
                       {data?.monthSummary?.fromDate
-                        ? `Calendar-month totals: ${formatDateForDisplay(data.monthSummary.fromDate)} – ${formatDateForDisplay(data.monthSummary.toDate)}`
-                        : "Calendar-month totals up to the selected date"}
+                        ? `Calendar-month totals: ${formatDateForDisplay(
+                            data.monthSummary.fromDate
+                          )} – ${formatDateForDisplay(
+                            data.monthSummary.toDate
+                          )}`
+                        : "Calendar-month totals"}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-5 border-y border-slate-800 py-5 sm:grid-cols-3 sm:gap-6">
                     {/* TOTAL FIELD WEIGHT */}
-                    <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-3.5 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-emerald-500/70">
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Leaf
+                          size={15}
+                          className="text-emerald-400"
+                        />
+
+                        <span className="text-xs text-slate-500">
                           Total Field Weight
                         </span>
-                        <Leaf size={15} className="text-emerald-500/70" />
                       </div>
 
-                      <p className="mt-1.5 text-xl font-bold text-emerald-400 sm:text-2xl">
-                        {formatNumber(data?.monthSummary?.totalTeaWeightKg || 0)}
-                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                      <p className="mt-2 text-xl font-bold text-emerald-400 sm:text-2xl">
+                        {formatNumber(
+                          data?.monthSummary?.totalTeaWeightKg || 0
+                        )}
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           KG
                         </span>
                       </p>
                     </div>
 
                     {/* TOTAL FACTORY WEIGHT */}
-                    <div className="rounded-xl border border-blue-500/10 bg-blue-500/5 p-3.5 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-blue-400/70">
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Factory
+                          size={15}
+                          className="text-blue-400"
+                        />
+
+                        <span className="text-xs text-slate-500">
                           Total Factory Weight
                         </span>
-                        <Factory size={15} className="text-blue-400/70" />
                       </div>
 
-                      <p className="mt-1.5 text-xl font-bold text-blue-400 sm:text-2xl">
-                        {formatNumber(data?.monthSummary?.totalFactoryWeightKg || 0)}
-                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                      <p className="mt-2 text-xl font-bold text-blue-400 sm:text-2xl">
+                        {formatNumber(
+                          data?.monthSummary?.totalFactoryWeightKg || 0
+                        )}
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           KG
                         </span>
                       </p>
                     </div>
 
                     {/* TOTAL DIFFERENCE */}
-                    <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3.5 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-amber-400/70">
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Scale
+                          size={15}
+                          className="text-amber-400"
+                        />
+
+                        <span className="text-xs text-slate-500">
                           Total Difference
                         </span>
-                        <Scale size={15} className="text-amber-400/70" />
                       </div>
 
                       <p
-                        className={`mt-1.5 text-xl font-bold sm:text-2xl ${
+                        className={`mt-2 text-xl font-bold sm:text-2xl ${
                           (data?.monthSummary?.totalDifferenceKg || 0) > 0
                             ? "text-cyan-400"
                             : (data?.monthSummary?.totalDifferenceKg || 0) < 0
@@ -974,9 +805,14 @@ export default function DashboardPage() {
                               : "text-emerald-400"
                         }`}
                       >
-                        {(data?.monthSummary?.totalDifferenceKg || 0) > 0 ? "+" : ""}
-                        {formatNumber(data?.monthSummary?.totalDifferenceKg || 0)}
-                        <span className="ml-1 text-[10px] font-normal text-slate-600 sm:text-xs">
+                        {(data?.monthSummary?.totalDifferenceKg || 0) > 0
+                          ? "+"
+                          : ""}
+                        {formatNumber(
+                          data?.monthSummary?.totalDifferenceKg || 0
+                        )}
+
+                        <span className="ml-1 text-xs font-medium text-slate-500">
                           KG
                         </span>
                       </p>
@@ -988,7 +824,7 @@ export default function DashboardPage() {
                     MONTHLY OVERVIEW
                 ================================================= */}
 
-                <section className="mt-8 border-t border-slate-800 pt-6">
+                <section className="mt-9 border-t border-slate-800 pt-7">
 
                   {/* MONTHLY HEADER + PERIOD SELECTOR */}
 
@@ -1002,7 +838,7 @@ export default function DashboardPage() {
                         Monthly Overview
                       </h2>
 
-                      <p className="mt-0.5 text-[10px] text-slate-600 sm:text-xs">
+                      <p className="mt-1 text-xs text-slate-600">
                         View collection totals for each month of the year.
                       </p>
                     </div>
@@ -1050,7 +886,10 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          fetchMonthlyDashboard(selectedMonth, selectedYear)
+                          fetchMonthlyDashboard(
+                            selectedMonth,
+                            selectedYear
+                          )
                         }
                         disabled={monthlyLoading}
                         aria-label="Refresh monthly overview"
@@ -1058,9 +897,14 @@ export default function DashboardPage() {
                       >
                         <RefreshCw
                           size={15}
-                          className={monthlyLoading ? "animate-spin" : ""}
+                          className={
+                            monthlyLoading ? "animate-spin" : ""
+                          }
                         />
-                        <span className="text-xs sm:hidden">Refresh</span>
+
+                        <span className="text-xs sm:hidden">
+                          Refresh
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -1068,18 +912,22 @@ export default function DashboardPage() {
                   {/* SELECTED PERIOD */}
 
                   {monthlyData && (
-                    <div className="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-slate-600 sm:text-xs">
+                    <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                       <span className="rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-emerald-400">
                         {monthlyPeriodLabel}
                       </span>
 
                       <span>
                         {monthlyData.monthSummary?.fromDate
-                          ? formatDateForDisplay(monthlyData.monthSummary.fromDate)
+                          ? formatDateForDisplay(
+                              monthlyData.monthSummary.fromDate
+                            )
                           : ""}
                         {" – "}
                         {monthlyData.monthSummary?.toDate
-                          ? formatDateForDisplay(monthlyData.monthSummary.toDate)
+                          ? formatDateForDisplay(
+                              monthlyData.monthSummary.toDate
+                            )
                           : ""}
                       </span>
                     </div>
@@ -1094,7 +942,10 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          fetchMonthlyDashboard(selectedMonth, selectedYear)
+                          fetchMonthlyDashboard(
+                            selectedMonth,
+                            selectedYear
+                          )
                         }
                         className="w-fit rounded-lg border border-red-500/20 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-500/10"
                       >
@@ -1106,7 +957,7 @@ export default function DashboardPage() {
                   {/* MONTHLY LOADING */}
 
                   {monthlyLoading && !monthlyData ? (
-                    <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-slate-800 bg-[#07140d]">
+                    <div className="flex min-h-[220px] items-center justify-center">
                       <div className="text-center">
                         <Loader2
                           size={28}
@@ -1119,31 +970,28 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   ) : monthlyError && !monthlyData ? (
-                    <div className="flex min-h-[160px] items-center justify-center rounded-xl border border-slate-800 bg-[#07140d] p-6 text-center">
+                    <div className="flex min-h-[160px] items-center justify-center p-6 text-center">
                       <p className="text-xs text-slate-500">
                         Monthly overview could not be loaded.
                       </p>
                     </div>
                   ) : (
-                    /* =================================================
-                       MONTHLY FACTORY WEIGHT
-                       ONLY ONE SUMMARY CARD
-                    ================================================= */
+                    /* MONTHLY FACTORY WEIGHT */
 
-                    <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-[#07140d] to-[#07140d] p-5 sm:p-7">
+                    <div className="border-y border-slate-800 py-6">
                       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
                               <Factory size={22} />
                             </div>
 
                             <div>
-                              <p className="text-xs font-medium text-blue-300/70">
+                              <p className="text-xs font-medium text-slate-400">
                                 Total Factory Weight
                               </p>
 
-                              <p className="mt-0.5 text-sm text-slate-500">
+                              <p className="mt-1 text-sm text-slate-600">
                                 {monthlyPeriodLabel}
                               </p>
                             </div>
@@ -1153,6 +1001,7 @@ export default function DashboardPage() {
                             {formatNumber(
                               monthlySummary?.totalFactoryWeightKg || 0
                             )}
+
                             <span className="ml-2 text-base font-medium text-slate-500 sm:text-lg">
                               KG
                             </span>
