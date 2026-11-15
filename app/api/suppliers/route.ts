@@ -217,6 +217,17 @@ export async function POST(
         body.address || ""
       ).trim();
 
+    // Cloudinary image details
+    const imageUrl =
+      String(
+        body.imageUrl || ""
+      ).trim();
+
+    const imagePublicId =
+      String(
+        body.imagePublicId || ""
+      ).trim();
+
     /* =================================================
        VALIDATION
     ================================================= */
@@ -340,6 +351,10 @@ export async function POST(
         village,
 
         address,
+
+        // Cloudinary profile image
+        imageUrl,
+        imagePublicId,
 
         status: "Active",
       });

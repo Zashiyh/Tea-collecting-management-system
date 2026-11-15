@@ -8,6 +8,11 @@ export interface ISupplier extends Document {
   areaName: string;
   village: string;
   address?: string;
+
+  // Profile Image
+  imageUrl?: string;
+  imagePublicId?: string;
+
   status: "Active" | "Inactive";
   createdAt: Date;
   updatedAt: Date;
@@ -57,6 +62,18 @@ const SupplierSchema = new Schema<ISupplier>(
       type: String,
       trim: true,
       default: "",
+    },
+
+    imageUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    imagePublicId: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
     status: {

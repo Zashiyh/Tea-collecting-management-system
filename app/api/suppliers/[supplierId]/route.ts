@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
 import { requireAuth } from "@/lib/auth";
+import cloudinary from "@/lib/cloudinary";
 
 import Supplier from "@/models/Supplier";
 import Area from "@/models/Area";
@@ -21,9 +22,7 @@ export async function GET(
   context: RouteContext
 ) {
   try {
-    // 🔒 Login required
     await requireAuth();
-
     await connectDB();
 
     const { supplierId } =
@@ -51,9 +50,6 @@ export async function GET(
       supplier,
     });
   } catch (error) {
-    /*
-     * UNAUTHORIZED
-     */
     if (
       error instanceof Error &&
       error.message === "UNAUTHORIZED"
@@ -96,9 +92,7 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
-    // 🔒 Login required
     await requireAuth();
-
     await connectDB();
 
     const { supplierId } =
@@ -121,6 +115,19 @@ export async function PATCH(
 
     const address =
       body.address?.trim() || "";
+
+    const imageUrl =
+      body.imageUrl === undefined
+        ? undefined
+        : String(body.imageUrl || "").trim();
+
+    const imagePublicId =
+      body.imagePublicId === undefined
+        ? undefined
+        : String(body.imagePublicId || "").trim();
+
+    const removeImage =
+      body.removeImage === true;
 
     if (
       !name ||
@@ -208,6 +215,64 @@ export async function PATCH(
     }
 
     /*
+     * Validate new Cloudinary image
+     */
+    if (
+      imageUrl !== undefined &&
+      imageUrl !== ""
+    ) {
+      try {
+        const parsedUrl = new URL(imageUrl);
+
+        if (
+          parsedUrl.protocol !== "https:" ||
+          parsedUrl.hostname !== "res.cloudinary.com"
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Invalid supplier image URL.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Invalid supplier image URL.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      if (!imagePublicId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Image ID is required.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+    }
+
+    /*
+     * Store old image details
+     */
+    const oldImagePublicId =
+      existingSupplier.imagePublicId || "";
+
+    const oldImageUrl =
+      existingSupplier.imageUrl || "";
+
+    /*
      * Update supplier
      */
     existingSupplier.name =
@@ -228,7 +293,51 @@ export async function PATCH(
     existingSupplier.address =
       address;
 
+    /*
+     * Update or remove profile image
+     */
+    if (removeImage) {
+      existingSupplier.imageUrl = "";
+      existingSupplier.imagePublicId = "";
+    } else if (
+      imageUrl !== undefined &&
+      imagePublicId !== undefined
+    ) {
+      existingSupplier.imageUrl =
+        imageUrl;
+
+      existingSupplier.imagePublicId =
+        imagePublicId;
+    }
+
     await existingSupplier.save();
+
+    /*
+     * Delete old Cloudinary image
+     * only after successful database save
+     */
+    const imageChanged =
+      removeImage ||
+      (
+        imagePublicId !== undefined &&
+        imagePublicId !== oldImagePublicId
+      );
+
+    if (
+      imageChanged &&
+      oldImagePublicId
+    ) {
+      try {
+        await cloudinary.uploader.destroy(
+          oldImagePublicId
+        );
+      } catch (imageError) {
+        console.error(
+          "OLD SUPPLIER IMAGE DELETE ERROR:",
+          imageError
+        );
+      }
+    }
 
     /*
      * Keep historical collection records
@@ -258,9 +367,6 @@ export async function PATCH(
         existingSupplier,
     });
   } catch (error) {
-    /*
-     * UNAUTHORIZED
-     */
     if (
       error instanceof Error &&
       error.message === "UNAUTHORIZED"
@@ -289,7 +395,7 @@ export async function PATCH(
           "Failed to update supplier",
       },
       {
-        status: 500,
+        status: 500
       }
     );
   }
@@ -303,9 +409,7 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
-    // 🔒 Login required
     await requireAuth();
-
     await connectDB();
 
     const { supplierId } =
@@ -362,9 +466,29 @@ export async function DELETE(
      * No collection history
      * => permanent delete is safe
      */
+    const imagePublicId =
+      supplier.imagePublicId || "";
+
     await Supplier.deleteOne({
       supplierId,
     });
+
+    /*
+     * Delete supplier profile image
+     * from Cloudinary
+     */
+    if (imagePublicId) {
+      try {
+        await cloudinary.uploader.destroy(
+          imagePublicId
+        );
+      } catch (imageError) {
+        console.error(
+          "SUPPLIER IMAGE DELETE ERROR:",
+          imageError
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -374,9 +498,6 @@ export async function DELETE(
         "Supplier deleted successfully",
     });
   } catch (error) {
-    /*
-     * UNAUTHORIZED
-     */
     if (
       error instanceof Error &&
       error.message === "UNAUTHORIZED"

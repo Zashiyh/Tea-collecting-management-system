@@ -19,6 +19,8 @@ export interface Supplier {
   totalKg: number;
   totalValue: number;
   status: "Active" | "Inactive";
+  imageUrl?: string;
+  imagePublicId?: string;
 }
 
 interface SuppliersTableProps {
@@ -78,11 +80,18 @@ export default function SuppliersTable({
                 key={supplier.id}
                 className="border-b border-slate-800/70 last:border-0 hover:bg-slate-900/40"
               >
-                {/* Supplier */}
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                      <User size={18} />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-emerald-500/10 text-emerald-400">
+                      {supplier.imageUrl ? (
+                        <img
+                          src={supplier.imageUrl}
+                          alt={supplier.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <User size={18} />
+                      )}
                     </div>
 
                     <div>
@@ -97,7 +106,6 @@ export default function SuppliersTable({
                   </div>
                 </td>
 
-                {/* Phone */}
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Phone size={15} />
@@ -105,7 +113,6 @@ export default function SuppliersTable({
                   </div>
                 </td>
 
-                {/* Area */}
                 <td className="px-5 py-4">
                   <div className="flex items-start gap-2">
                     <MapPin
@@ -125,12 +132,10 @@ export default function SuppliersTable({
                   </div>
                 </td>
 
-                {/* Village */}
                 <td className="px-5 py-4 text-slate-400">
-                  {supplier.village}
+                  {supplier.village || "-"}
                 </td>
 
-                {/* KG */}
                 <td className="px-5 py-4 text-slate-300">
                   {Number(
                     supplier.totalKg || 0
@@ -138,26 +143,20 @@ export default function SuppliersTable({
                   KG
                 </td>
 
-                {/* Value */}
                 <td className="px-5 py-4 font-medium text-emerald-400">
                   Rs.{" "}
                   {Number(
                     supplier.totalValue || 0
-                  ).toLocaleString(
-                    "en-LK",
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }
-                  )}
+                  ).toLocaleString("en-LK", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </td>
 
-                {/* Status */}
                 <td className="px-5 py-4">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                      supplier.status ===
-                      "Active"
+                      supplier.status === "Active"
                         ? "bg-emerald-500/10 text-emerald-400"
                         : "bg-slate-500/10 text-slate-400"
                     }`}
@@ -166,14 +165,11 @@ export default function SuppliersTable({
                   </span>
                 </td>
 
-                {/* Actions */}
                 <td className="px-5 py-4">
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        onEdit(supplier)
-                      }
+                      onClick={() => onEdit(supplier)}
                       title="Edit supplier"
                       className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-400"
                     >
@@ -182,9 +178,7 @@ export default function SuppliersTable({
 
                     <button
                       type="button"
-                      onClick={() =>
-                        onDelete(supplier)
-                      }
+                      onClick={() => onDelete(supplier)}
                       title="Delete supplier"
                       className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
                     >
@@ -194,6 +188,17 @@ export default function SuppliersTable({
                 </td>
               </tr>
             ))}
+
+            {suppliers.length === 0 && (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="px-5 py-12 text-center text-slate-500"
+                >
+                  No suppliers found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

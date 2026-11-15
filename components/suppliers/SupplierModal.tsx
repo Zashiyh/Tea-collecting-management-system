@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -10,6 +9,7 @@ import {
 
 import {
   AlertCircle,
+  ImagePlus,
   Loader2,
   Plus,
   Save,
@@ -31,6 +31,8 @@ interface SupplierFormRow {
   phone: string;
   village: string;
   address: string;
+  image: File | null;
+  imagePreview: string;
 }
 
 export interface SupplierEditData {
@@ -44,6 +46,8 @@ export interface SupplierEditData {
   totalKg: number;
   totalValue: number;
   status: "Active" | "Inactive";
+  imageUrl?: string;
+  imagePublicId?: string;
 }
 
 interface SupplierModalProps {
@@ -59,7 +63,11 @@ const emptySupplierRow = (): SupplierFormRow => ({
   phone: "",
   village: "",
   address: "",
+  image: null,
+  imagePreview: "",
 });
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 export default function SupplierModal({
   isOpen,
@@ -74,20 +82,16 @@ export default function SupplierModal({
   ========================================================= */
 
   const [areas, setAreas] = useState<Area[]>([]);
-  const [areasLoading, setAreasLoading] =
-    useState(false);
+  const [areasLoading, setAreasLoading] = useState(false);
 
   /* =========================================================
      ADD MODE
   ========================================================= */
 
-  const [selectedAreaId, setSelectedAreaId] =
-    useState("");
-
-  const [supplierRows, setSupplierRows] =
-    useState<SupplierFormRow[]>([
-      emptySupplierRow(),
-    ]);
+  const [selectedAreaId, setSelectedAreaId] = useState("");
+  const [supplierRows, setSupplierRows] = useState<
+    SupplierFormRow[]
+  >([emptySupplierRow()]);
 
   /* =========================================================
      EDIT MODE
@@ -95,16 +99,22 @@ export default function SupplierModal({
 
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
-  const [editAreaId, setEditAreaId] =
-    useState("");
-  const [editVillage, setEditVillage] =
-    useState("");
-  const [editAddress, setEditAddress] =
-    useState("");
+  const [editAreaId, setEditAreaId] = useState("");
+  const [editVillage, setEditVillage] = useState("");
+  const [editAddress, setEditAddress] = useState("");
 
   const [status, setStatus] = useState<
     "Active" | "Inactive"
   >("Active");
+
+  const [editImage, setEditImage] = useState<File | null>(
+    null
+  );
+
+  const [editImagePreview, setEditImagePreview] =
+    useState("");
+
+  const [removeImage, setRemoveImage] = useState(false);
 
   /* =========================================================
      COMMON
@@ -123,19 +133,16 @@ export default function SupplierModal({
 
   const selectedArea = useMemo(() => {
     return areas.find(
-      (area) =>
-        area.areaId === activeAreaId
+      (area) => area.areaId === activeAreaId
     );
   }, [areas, activeAreaId]);
 
   /* =========================================================
-     LOAD AREAS WHEN MODAL OPENS
+     LOAD AREAS
   ========================================================= */
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
 
     fetchAreas();
   }, [isOpen]);
@@ -145,13 +152,9 @@ export default function SupplierModal({
   ========================================================= */
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
 
     if (supplier) {
-      /* EDIT */
-
       setEditName(supplier.name);
       setEditPhone(supplier.phone);
       setEditAreaId(supplier.areaId);
@@ -159,13 +162,13 @@ export default function SupplierModal({
       setEditAddress(supplier.address || "");
       setStatus(supplier.status);
 
-      setSelectedAreaId("");
-      setSupplierRows([
-        emptySupplierRow(),
-      ]);
-    } else {
-      /* ADD */
+      setEditImage(null);
+      setEditImagePreview(supplier.imageUrl || "");
+      setRemoveImage(false);
 
+      setSelectedAreaId("");
+      setSupplierRows([emptySupplierRow()]);
+    } else {
       setEditName("");
       setEditPhone("");
       setEditAreaId("");
@@ -173,11 +176,12 @@ export default function SupplierModal({
       setEditAddress("");
       setStatus("Active");
 
-      setSelectedAreaId("");
+      setEditImage(null);
+      setEditImagePreview("");
+      setRemoveImage(false);
 
-      setSupplierRows([
-        emptySupplierRow(),
-      ]);
+      setSelectedAreaId("");
+      setSupplierRows([emptySupplierRow()]);
     }
 
     setError("");
@@ -192,13 +196,10 @@ export default function SupplierModal({
       setAreasLoading(true);
       setError("");
 
-      const response = await fetch(
-        "/api/areas",
-        {
-          method: "GET",
-          cache: "no-store",
-        }
-      );
+      const response = await fetch("/api/areas", {
+        method: "GET",
+        cache: "no-store",
+      });
 
       const text = await response.text();
 
@@ -209,29 +210,18 @@ export default function SupplierModal({
       };
 
       try {
-        data = text
-          ? JSON.parse(text)
-          : {};
+        data = text ? JSON.parse(text) : {};
       } catch {
-        throw new Error(
-          "Invalid areas response"
-        );
+        throw new Error("Invalid areas response");
       }
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to load areas"
+          data.message || "Failed to load areas"
         );
       }
 
-      /*
-       * Active areas only for Add mode,
-       * plus current area for Edit mode.
-       */
-      const activeAreas = (
-        data.areas || []
-      ).filter(
+      const activeAreas = (data.areas || []).filter(
         (area) =>
           area.status === "Active" ||
           area.areaId === supplier?.areaId
@@ -239,10 +229,7 @@ export default function SupplierModal({
 
       setAreas(activeAreas);
     } catch (error) {
-      console.error(
-        "Fetch areas error:",
-        error
-      );
+      console.error("Fetch areas error:", error);
 
       setError(
         error instanceof Error
@@ -255,21 +242,91 @@ export default function SupplierModal({
   }
 
   /* =========================================================
+     IMAGE VALIDATION
+  ========================================================= */
+
+  function validateImage(file: File): boolean {
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image file.");
+      return false;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      setError("Image size must be less than 5 MB.");
+      return false;
+    }
+
+    return true;
+  }
+
+  /* =========================================================
+     UPLOAD IMAGE TO CLOUDINARY
+  ========================================================= */
+
+  async function uploadImage(file: File): Promise<{
+  imageUrl: string;
+  imagePublicId: string;
+}> {
+  const formData = new FormData();
+formData.append("file", file);
+
+  const response = await fetch(
+    "/api/suppliers/upload",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+    const text = await response.text();
+
+    let data: {
+      success?: boolean;
+      message?: string;
+      imageUrl?: string;
+      imagePublicId?: string;
+    };
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error("Invalid image upload response.");
+    }
+
+    if (
+      !response.ok ||
+      !data.success ||
+      !data.imageUrl ||
+      !data.imagePublicId
+    ) {
+      throw new Error(
+        data.message || "Failed to upload image."
+      );
+    }
+
+    return {
+      imageUrl: data.imageUrl,
+      imagePublicId: data.imagePublicId,
+    };
+  }
+
+  /* =========================================================
      RESET
   ========================================================= */
 
   function resetForm() {
     setSelectedAreaId("");
-
-    setSupplierRows([
-      emptySupplierRow(),
-    ]);
+    setSupplierRows([emptySupplierRow()]);
 
     setEditName("");
     setEditPhone("");
     setEditAreaId("");
     setEditVillage("");
     setEditAddress("");
+
+    setEditImage(null);
+    setEditImagePreview("");
+    setRemoveImage(false);
 
     setStatus("Active");
     setError("");
@@ -280,9 +337,7 @@ export default function SupplierModal({
   ========================================================= */
 
   function handleClose() {
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
     resetForm();
     onClose();
@@ -303,17 +358,11 @@ export default function SupplierModal({
      REMOVE SUPPLIER ROW
   ========================================================= */
 
-  function removeSupplierRow(
-    rowId: number
-  ) {
+  function removeSupplierRow(rowId: number) {
     setSupplierRows((current) => {
-      if (current.length === 1) {
-        return current;
-      }
+      if (current.length === 1) return current;
 
-      return current.filter(
-        (row) => row.id !== rowId
-      );
+      return current.filter((row) => row.id !== rowId);
     });
   }
 
@@ -323,18 +372,59 @@ export default function SupplierModal({
 
   function updateSupplierRow(
     rowId: number,
-    field: keyof Omit<
-      SupplierFormRow,
-      "id"
-    >,
+    field: "name" | "phone" | "village" | "address",
     value: string
   ) {
     setSupplierRows((current) =>
       current.map((row) =>
         row.id === rowId
+          ? { ...row, [field]: value }
+          : row
+      )
+    );
+  }
+
+  /* =========================================================
+     SELECT ADD MODE IMAGE
+  ========================================================= */
+
+  function handleRowImageChange(
+    rowId: number,
+    file: File | null
+  ) {
+    if (!file) return;
+
+    if (!validateImage(file)) return;
+
+    const preview = URL.createObjectURL(file);
+
+    setSupplierRows((current) =>
+      current.map((row) =>
+        row.id === rowId
           ? {
               ...row,
-              [field]: value,
+              image: file,
+              imagePreview: preview,
+            }
+          : row
+      )
+    );
+
+    setError("");
+  }
+
+  /* =========================================================
+     REMOVE ADD MODE IMAGE
+  ========================================================= */
+
+  function removeRowImage(rowId: number) {
+    setSupplierRows((current) =>
+      current.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              image: null,
+              imagePreview: "",
             }
           : row
       )
@@ -342,16 +432,46 @@ export default function SupplierModal({
   }
 
   /* =========================================================
+     SELECT EDIT MODE IMAGE
+  ========================================================= */
+
+  function handleEditImageChange(file: File | null) {
+    if (!file) return;
+
+    if (!validateImage(file)) return;
+
+    setEditImage(file);
+    setEditImagePreview(URL.createObjectURL(file));
+    setRemoveImage(false);
+    setError("");
+  }
+
+  /* =========================================================
+     REMOVE EDIT MODE IMAGE
+  ========================================================= */
+
+  function handleRemoveEditImage() {
+    setEditImage(null);
+    setEditImagePreview("");
+    setRemoveImage(true);
+  }
+
+  /* =========================================================
      SAVE SINGLE SUPPLIER
   ========================================================= */
 
-  async function createSupplier(
-    row: SupplierFormRow
-  ) {
+  async function createSupplier(row: SupplierFormRow) {
     if (!selectedArea) {
-      throw new Error(
-        "Selected area is invalid."
-      );
+      throw new Error("Selected area is invalid.");
+    }
+
+    let imageDetails = {
+      imageUrl: "",
+      imagePublicId: "",
+    };
+
+    if (row.image) {
+      imageDetails = await uploadImage(row.image);
     }
 
     const body = {
@@ -361,19 +481,16 @@ export default function SupplierModal({
       areaName: selectedArea.name,
       village: row.village.trim(),
       address: row.address.trim(),
+      ...imageDetails,
     };
 
-    const response = await fetch(
-      "/api/suppliers",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
+    const response = await fetch("/api/suppliers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
     const text = await response.text();
 
@@ -383,19 +500,14 @@ export default function SupplierModal({
     };
 
     try {
-      data = text
-        ? JSON.parse(text)
-        : {};
+      data = text ? JSON.parse(text) : {};
     } catch {
-      throw new Error(
-        "Invalid server response."
-      );
+      throw new Error("Invalid server response.");
     }
 
     if (!response.ok || data.success === false) {
       throw new Error(
-        data.message ||
-          "Failed to create supplier."
+        data.message || "Failed to create supplier."
       );
     }
 
@@ -408,18 +520,25 @@ export default function SupplierModal({
 
   async function updateSupplier() {
     if (!supplier) {
-      throw new Error(
-        "Supplier data is missing."
-      );
+      throw new Error("Supplier data is missing.");
     }
 
     if (!selectedArea) {
-      throw new Error(
-        "Selected area is invalid."
-      );
+      throw new Error("Selected area is invalid.");
     }
 
-    const body = {
+    const body: {
+      name: string;
+      phone: string;
+      areaId: string;
+      areaName: string;
+      village: string;
+      address: string;
+      status: "Active" | "Inactive";
+      imageUrl?: string;
+      imagePublicId?: string;
+      removeImage?: boolean;
+    } = {
       name: editName.trim(),
       phone: editPhone.trim(),
       areaId: selectedArea.areaId,
@@ -429,13 +548,21 @@ export default function SupplierModal({
       status,
     };
 
+    if (editImage) {
+      const imageDetails = await uploadImage(editImage);
+
+      body.imageUrl = imageDetails.imageUrl;
+      body.imagePublicId = imageDetails.imagePublicId;
+    } else if (removeImage) {
+      body.removeImage = true;
+    }
+
     const response = await fetch(
       `/api/suppliers/${supplier.id}`,
       {
         method: "PATCH",
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
       }
@@ -449,19 +576,14 @@ export default function SupplierModal({
     };
 
     try {
-      data = text
-        ? JSON.parse(text)
-        : {};
+      data = text ? JSON.parse(text) : {};
     } catch {
-      throw new Error(
-        "Invalid server response."
-      );
+      throw new Error("Invalid server response.");
     }
 
     if (!response.ok || data.success === false) {
       throw new Error(
-        data.message ||
-          "Failed to update supplier."
+        data.message || "Failed to update supplier."
       );
     }
 
@@ -476,7 +598,6 @@ export default function SupplierModal({
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
     setError("");
 
     /* =======================================================
@@ -484,50 +605,28 @@ export default function SupplierModal({
     ======================================================= */
 
     if (isEditMode) {
-      const cleanName =
-        editName.trim();
-
-      const cleanPhone =
-        editPhone.trim();
-
-      const cleanVillage =
-        editVillage.trim();
-
-      const cleanAddress =
-        editAddress.trim();
-
-      if (!cleanName) {
-        setError(
-          "Supplier name is required."
-        );
+      if (!editName.trim()) {
+        setError("Supplier name is required.");
         return;
       }
 
-      if (!cleanPhone) {
-        setError(
-          "Phone number is required."
-        );
+      if (!editPhone.trim()) {
+        setError("Phone number is required.");
         return;
       }
 
       if (!editAreaId) {
-        setError(
-          "Please select an area."
-        );
+        setError("Please select an area.");
         return;
       }
 
-      if (!cleanVillage) {
-        setError(
-          "Village is required."
-        );
+      if (!editVillage.trim()) {
+        setError("Village is required.");
         return;
       }
 
       if (!selectedArea) {
-        setError(
-          "Selected area is invalid."
-        );
+        setError("Selected area is invalid.");
         return;
       }
 
@@ -539,10 +638,7 @@ export default function SupplierModal({
         resetForm();
         onCreated();
       } catch (error) {
-        console.error(
-          "Supplier update error:",
-          error
-        );
+        console.error("Supplier update error:", error);
 
         setError(
           error instanceof Error
@@ -561,27 +657,19 @@ export default function SupplierModal({
     ======================================================= */
 
     if (!selectedAreaId) {
-      setError(
-        "Please select a collection area."
-      );
+      setError("Please select a collection area.");
       return;
     }
 
     if (!selectedArea) {
-      setError(
-        "Selected area is invalid."
-      );
+      setError("Selected area is invalid.");
       return;
     }
 
     if (supplierRows.length === 0) {
-      setError(
-        "Please add at least one supplier."
-      );
+      setError("Please add at least one supplier.");
       return;
     }
-
-    /* Validate all rows before submitting */
 
     for (
       let index = 0;
@@ -589,7 +677,6 @@ export default function SupplierModal({
       index++
     ) {
       const row = supplierRows[index];
-
       const rowNumber = index + 1;
 
       if (!row.name.trim()) {
@@ -620,11 +707,6 @@ export default function SupplierModal({
       let successCount = 0;
       const failedMessages: string[] = [];
 
-      /*
-       * Save suppliers one by one.
-       * This keeps the existing /api/suppliers endpoint.
-       */
-
       for (
         let index = 0;
         index < supplierRows.length;
@@ -646,49 +728,28 @@ export default function SupplierModal({
         }
       }
 
-      /* =====================================================
-         ALL SUCCESS
-      ===================================================== */
-
-      if (
-        successCount ===
-        supplierRows.length
-      ) {
+      if (successCount === supplierRows.length) {
         resetForm();
         onCreated();
         return;
       }
 
-      /* =====================================================
-         PARTIAL / COMPLETE FAILURE
-      ===================================================== */
-
       if (successCount > 0) {
         setError(
           `${successCount} supplier${
-            successCount === 1
-              ? ""
-              : "s"
+            successCount === 1 ? "" : "s"
           } saved successfully. ${
-            supplierRows.length -
-            successCount
-          } failed. ${failedMessages.join(
-            " | "
-          )}`
+            supplierRows.length - successCount
+          } failed. ${failedMessages.join(" | ")}`
         );
       } else {
         setError(
-          failedMessages.join(
-            " | "
-          ) ||
+          failedMessages.join(" | ") ||
             "Failed to save suppliers."
         );
       }
     } catch (error) {
-      console.error(
-        "Supplier save error:",
-        error
-      );
+      console.error("Supplier save error:", error);
 
       setError(
         error instanceof Error
@@ -708,6 +769,93 @@ export default function SupplierModal({
     return null;
   }
 
+  /* =========================================================
+     IMAGE UPLOAD UI
+  ========================================================= */
+
+  function ImageUpload({
+    preview,
+    onChange,
+    onRemove,
+    disabled,
+    inputId,
+  }: {
+    preview: string;
+    onChange: (file: File | null) => void;
+    onRemove: () => void;
+    disabled: boolean;
+    inputId: string;
+  }) {
+    return (
+      <div>
+        <label className="mb-2 block text-sm font-medium text-slate-300">
+          Profile Image
+          <span className="ml-2 text-xs font-normal text-slate-600">
+            Optional · Max 5 MB
+          </span>
+        </label>
+
+        <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-800 bg-[#020a06] p-4">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
+            {preview ? (
+              <img
+                src={preview}
+                alt="Supplier profile preview"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <UserPlus
+                size={28}
+                className="text-slate-600"
+              />
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              htmlFor={inputId}
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/20 ${
+                disabled
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }`}
+            >
+              <ImagePlus size={16} />
+              {preview ? "Change Image" : "Choose Image"}
+            </label>
+
+            <input
+              id={inputId}
+              type="file"
+              accept="image/*"
+              disabled={disabled}
+              className="hidden"
+              onChange={(event) => {
+                const file =
+                  event.target.files?.[0] || null;
+
+                onChange(file);
+                event.target.value = "";
+              }}
+            />
+
+            {preview && (
+              <button
+                type="button"
+                onClick={onRemove}
+                disabled={disabled}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+              >
+                <Trash2 size={15} />
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
@@ -724,20 +872,13 @@ export default function SupplierModal({
         className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm disabled:cursor-not-allowed"
       />
 
-      {/* =====================================================
-          MODAL
-      ===================================================== */}
+      {/* MODAL */}
 
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#07140d] shadow-2xl">
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        {/* HEADER */}
 
         <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-slate-800 bg-[#07140d] px-5 py-4 sm:px-6">
-
           <div className="flex items-center gap-3">
-
             <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-400">
               {isEditMode ? (
                 <Save size={20} />
@@ -747,7 +888,6 @@ export default function SupplierModal({
             </div>
 
             <div>
-
               <h2 className="text-lg font-semibold text-white">
                 {isEditMode
                   ? "Edit Supplier"
@@ -759,9 +899,7 @@ export default function SupplierModal({
                   ? `Update ${supplier?.id}`
                   : "Add multiple tea leaf suppliers at once"}
               </p>
-
             </div>
-
           </div>
 
           <button
@@ -772,53 +910,37 @@ export default function SupplierModal({
           >
             <X size={20} />
           </button>
-
         </div>
 
-        {/* =================================================
-            FORM
-        ================================================= */}
+        {/* FORM */}
 
         <form
           onSubmit={handleSubmit}
           className="flex min-h-0 flex-1 flex-col"
         >
-
           {/* SCROLL AREA */}
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-
             <div className="space-y-5">
-
-              {/* =================================================
-                  ERROR
-              ================================================= */}
+              {/* ERROR */}
 
               {error && (
                 <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-
                   <AlertCircle
                     size={18}
                     className="mt-0.5 shrink-0"
                   />
-
                   <span>{error}</span>
-
                 </div>
               )}
 
-              {/* =================================================
-                  EDIT MODE
-              ================================================= */}
+              {/* EDIT MODE */}
 
               {isEditMode ? (
-
                 <>
-
                   {/* SUPPLIER ID */}
 
                   <div>
-
                     <label className="mb-2 block text-sm font-medium text-slate-300">
                       Supplier ID
                     </label>
@@ -826,13 +948,21 @@ export default function SupplierModal({
                     <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm font-medium text-emerald-400">
                       {supplier?.id}
                     </div>
-
                   </div>
+
+                  {/* PROFILE IMAGE */}
+
+                  <ImageUpload
+                    inputId="supplier-edit-image"
+                    preview={editImagePreview}
+                    disabled={loading}
+                    onChange={handleEditImageChange}
+                    onRemove={handleRemoveEditImage}
+                  />
 
                   {/* NAME */}
 
                   <div>
-
                     <label
                       htmlFor="supplier-edit-name"
                       className="mb-2 block text-sm font-medium text-slate-300"
@@ -848,23 +978,18 @@ export default function SupplierModal({
                       type="text"
                       value={editName}
                       onChange={(event) =>
-                        setEditName(
-                          event.target.value
-                        )
+                        setEditName(event.target.value)
                       }
                       placeholder="Enter supplier name"
                       disabled={loading}
                       className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
                     />
-
                   </div>
 
                   {/* PHONE + VILLAGE */}
 
                   <div className="grid gap-5 sm:grid-cols-2">
-
                     <div>
-
                       <label
                         htmlFor="supplier-edit-phone"
                         className="mb-2 block text-sm font-medium text-slate-300"
@@ -880,19 +1005,15 @@ export default function SupplierModal({
                         type="tel"
                         value={editPhone}
                         onChange={(event) =>
-                          setEditPhone(
-                            event.target.value
-                          )
+                          setEditPhone(event.target.value)
                         }
                         placeholder="07XXXXXXXX"
                         disabled={loading}
                         className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
                       />
-
                     </div>
 
                     <div>
-
                       <label
                         htmlFor="supplier-edit-village"
                         className="mb-2 block text-sm font-medium text-slate-300"
@@ -908,23 +1029,18 @@ export default function SupplierModal({
                         type="text"
                         value={editVillage}
                         onChange={(event) =>
-                          setEditVillage(
-                            event.target.value
-                          )
+                          setEditVillage(event.target.value)
                         }
                         placeholder="Enter village"
                         disabled={loading}
                         className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
                       />
-
                     </div>
-
                   </div>
 
                   {/* AREA */}
 
                   <div>
-
                     <label
                       htmlFor="supplier-edit-area"
                       className="mb-2 block text-sm font-medium text-slate-300"
@@ -936,32 +1052,23 @@ export default function SupplierModal({
                     </label>
 
                     {areasLoading ? (
-
                       <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-slate-500">
-
                         <Loader2
                           size={17}
                           className="animate-spin"
                         />
-
                         Loading areas...
-
                       </div>
-
                     ) : (
-
                       <select
                         id="supplier-edit-area"
                         value={editAreaId}
                         onChange={(event) =>
-                          setEditAreaId(
-                            event.target.value
-                          )
+                          setEditAreaId(event.target.value)
                         }
                         disabled={loading}
                         className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-60"
                       >
-
                         <option value="">
                           Select collection area
                         </option>
@@ -971,27 +1078,21 @@ export default function SupplierModal({
                             key={area.areaId}
                             value={area.areaId}
                           >
-                            {area.name} (
-                            {area.areaId})
+                            {area.name} ({area.areaId})
                           </option>
                         ))}
-
                       </select>
-
                     )}
-
                   </div>
 
                   {/* ADDRESS */}
 
                   <div>
-
                     <label
                       htmlFor="supplier-edit-address"
                       className="mb-2 block text-sm font-medium text-slate-300"
                     >
                       Address
-
                       <span className="ml-2 text-xs font-normal text-slate-600">
                         Optional
                       </span>
@@ -1001,22 +1102,18 @@ export default function SupplierModal({
                       id="supplier-edit-address"
                       value={editAddress}
                       onChange={(event) =>
-                        setEditAddress(
-                          event.target.value
-                        )
+                        setEditAddress(event.target.value)
                       }
                       placeholder="Enter supplier address"
                       rows={3}
                       disabled={loading}
                       className="w-full resize-none rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
                     />
-
                   </div>
 
                   {/* STATUS */}
 
                   <div>
-
                     <label
                       htmlFor="supplier-status"
                       className="mb-2 block text-sm font-medium text-slate-300"
@@ -1029,8 +1126,7 @@ export default function SupplierModal({
                       value={status}
                       onChange={(event) =>
                         setStatus(
-                          event.target
-                            .value as
+                          event.target.value as
                             | "Active"
                             | "Inactive"
                         )
@@ -1046,23 +1142,14 @@ export default function SupplierModal({
                         Inactive
                       </option>
                     </select>
-
                   </div>
-
                 </>
-
               ) : (
-
-                /* =================================================
-                   ADD MODE
-                ================================================= */
-
+                /* ADD MODE */
                 <>
-
                   {/* AREA SELECT */}
 
                   <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-4">
-
                     <label
                       htmlFor="supplier-common-area"
                       className="mb-2 block text-sm font-medium text-slate-300"
@@ -1074,32 +1161,23 @@ export default function SupplierModal({
                     </label>
 
                     {areasLoading ? (
-
                       <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-slate-500">
-
                         <Loader2
                           size={17}
                           className="animate-spin"
                         />
-
                         Loading areas...
-
                       </div>
-
                     ) : (
-
                       <select
                         id="supplier-common-area"
                         value={selectedAreaId}
                         onChange={(event) =>
-                          setSelectedAreaId(
-                            event.target.value
-                          )
+                          setSelectedAreaId(event.target.value)
                         }
                         disabled={loading}
                         className="w-full rounded-xl border border-slate-800 bg-[#020a06] px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-60"
                       >
-
                         <option value="">
                           Select collection area
                         </option>
@@ -1109,13 +1187,10 @@ export default function SupplierModal({
                             key={area.areaId}
                             value={area.areaId}
                           >
-                            {area.name} (
-                            {area.areaId})
+                            {area.name} ({area.areaId})
                           </option>
                         ))}
-
                       </select>
-
                     )}
 
                     {selectedArea && (
@@ -1127,13 +1202,11 @@ export default function SupplierModal({
                         .
                       </p>
                     )}
-
                   </div>
 
                   {/* SUPPLIER ROWS HEADER */}
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
                     <div>
                       <h3 className="text-sm font-semibold text-white">
                         Supplier List
@@ -1153,215 +1226,199 @@ export default function SupplierModal({
                       <Plus size={16} />
                       Add Supplier Row
                     </button>
-
                   </div>
 
                   {/* SUPPLIER ROWS */}
 
                   <div className="space-y-4">
+                    {supplierRows.map((row, index) => (
+                      <div
+                        key={row.id}
+                        className="rounded-2xl border border-slate-800 bg-[#020a06] p-4 sm:p-5"
+                      >
+                        {/* ROW TOP */}
 
-                    {supplierRows.map(
-                      (row, index) => (
-                        <div
-                          key={row.id}
-                          className="rounded-2xl border border-slate-800 bg-[#020a06] p-4 sm:p-5"
-                        >
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-400">
+                              {index + 1}
+                            </span>
 
-                          {/* ROW TOP */}
-
-                          <div className="mb-4 flex items-center justify-between">
-
-                            <div className="flex items-center gap-2">
-
-                              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-400">
-                                {index + 1}
-                              </span>
-
-                              <span className="text-sm font-semibold text-white">
-                                Supplier {index + 1}
-                              </span>
-
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeSupplierRow(
-                                  row.id
-                                )
-                              }
-                              disabled={
-                                loading ||
-                                supplierRows.length === 1
-                              }
-                              title={
-                                supplierRows.length ===
-                                1
-                                  ? "At least one supplier is required"
-                                  : "Remove supplier"
-                              }
-                              className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
-                            >
-                              <Trash2
-                                size={16}
-                              />
-                            </button>
-
+                            <span className="text-sm font-semibold text-white">
+                              Supplier {index + 1}
+                            </span>
                           </div>
 
-                          {/* NAME */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeSupplierRow(row.id)
+                            }
+                            disabled={
+                              loading ||
+                              supplierRows.length === 1
+                            }
+                            title={
+                              supplierRows.length === 1
+                                ? "At least one supplier is required"
+                                : "Remove supplier"
+                            }
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
 
-                          <div className="mb-4">
+                        {/* PROFILE IMAGE */}
 
+                        <div className="mb-4">
+                          <ImageUpload
+                            inputId={`supplier-image-${row.id}`}
+                            preview={row.imagePreview}
+                            disabled={loading}
+                            onChange={(file) =>
+                              handleRowImageChange(
+                                row.id,
+                                file
+                              )
+                            }
+                            onRemove={() =>
+                              removeRowImage(row.id)
+                            }
+                          />
+                        </div>
+
+                        {/* NAME */}
+
+                        <div className="mb-4">
+                          <label
+                            htmlFor={`supplier-name-${row.id}`}
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                          >
+                            Supplier Name
+                            <span className="ml-1 text-red-400">
+                              *
+                            </span>
+                          </label>
+
+                          <input
+                            id={`supplier-name-${row.id}`}
+                            type="text"
+                            value={row.name}
+                            onChange={(event) =>
+                              updateSupplierRow(
+                                row.id,
+                                "name",
+                                event.target.value
+                              )
+                            }
+                            placeholder="Enter supplier name"
+                            disabled={loading}
+                            className="w-full rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
+                          />
+                        </div>
+
+                        {/* PHONE + VILLAGE */}
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
                             <label
-                              htmlFor={`supplier-name-${row.id}`}
+                              htmlFor={`supplier-phone-${row.id}`}
                               className="mb-2 block text-sm font-medium text-slate-300"
                             >
-                              Supplier Name
+                              Phone Number
                               <span className="ml-1 text-red-400">
                                 *
                               </span>
                             </label>
 
                             <input
-                              id={`supplier-name-${row.id}`}
-                              type="text"
-                              value={row.name}
+                              id={`supplier-phone-${row.id}`}
+                              type="tel"
+                              value={row.phone}
                               onChange={(event) =>
                                 updateSupplierRow(
                                   row.id,
-                                  "name",
+                                  "phone",
                                   event.target.value
                                 )
                               }
-                              placeholder="Enter supplier name"
+                              placeholder="07XXXXXXXX"
                               disabled={loading}
                               className="w-full rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
                             />
-
                           </div>
 
-                          {/* PHONE + VILLAGE */}
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-
-                            <div>
-
-                              <label
-                                htmlFor={`supplier-phone-${row.id}`}
-                                className="mb-2 block text-sm font-medium text-slate-300"
-                              >
-                                Phone Number
-                                <span className="ml-1 text-red-400">
-                                  *
-                                </span>
-                              </label>
-
-                              <input
-                                id={`supplier-phone-${row.id}`}
-                                type="tel"
-                                value={row.phone}
-                                onChange={(event) =>
-                                  updateSupplierRow(
-                                    row.id,
-                                    "phone",
-                                    event.target.value
-                                  )
-                                }
-                                placeholder="07XXXXXXXX"
-                                disabled={loading}
-                                className="w-full rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
-                              />
-
-                            </div>
-
-                            <div>
-
-                              <label
-                                htmlFor={`supplier-village-${row.id}`}
-                                className="mb-2 block text-sm font-medium text-slate-300"
-                              >
-                                Village
-                                <span className="ml-1 text-red-400">
-                                  *
-                                </span>
-                              </label>
-
-                              <input
-                                id={`supplier-village-${row.id}`}
-                                type="text"
-                                value={row.village}
-                                onChange={(event) =>
-                                  updateSupplierRow(
-                                    row.id,
-                                    "village",
-                                    event.target.value
-                                  )
-                                }
-                                placeholder="Enter village"
-                                disabled={loading}
-                                className="w-full rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
-                              />
-
-                            </div>
-
-                          </div>
-
-                          {/* ADDRESS */}
-
-                          <div className="mt-4">
-
+                          <div>
                             <label
-                              htmlFor={`supplier-address-${row.id}`}
+                              htmlFor={`supplier-village-${row.id}`}
                               className="mb-2 block text-sm font-medium text-slate-300"
                             >
-                              Address
-
-                              <span className="ml-2 text-xs font-normal text-slate-600">
-                                Optional
+                              Village
+                              <span className="ml-1 text-red-400">
+                                *
                               </span>
                             </label>
 
-                            <textarea
-                              id={`supplier-address-${row.id}`}
-                              value={row.address}
+                            <input
+                              id={`supplier-village-${row.id}`}
+                              type="text"
+                              value={row.village}
                               onChange={(event) =>
                                 updateSupplierRow(
                                   row.id,
-                                  "address",
+                                  "village",
                                   event.target.value
                                 )
                               }
-                              placeholder="Enter supplier address"
-                              rows={2}
+                              placeholder="Enter village"
                               disabled={loading}
-                              className="w-full resize-none rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
+                              className="w-full rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
                             />
-
                           </div>
-
                         </div>
-                      )
-                    )}
 
+                        {/* ADDRESS */}
+
+                        <div className="mt-4">
+                          <label
+                            htmlFor={`supplier-address-${row.id}`}
+                            className="mb-2 block text-sm font-medium text-slate-300"
+                          >
+                            Address
+                            <span className="ml-2 text-xs font-normal text-slate-600">
+                              Optional
+                            </span>
+                          </label>
+
+                          <textarea
+                            id={`supplier-address-${row.id}`}
+                            value={row.address}
+                            onChange={(event) =>
+                              updateSupplierRow(
+                                row.id,
+                                "address",
+                                event.target.value
+                              )
+                            }
+                            placeholder="Enter supplier address"
+                            rows={2}
+                            disabled={loading}
+                            className="w-full resize-none rounded-xl border border-slate-800 bg-[#07140d] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-emerald-500 disabled:opacity-60"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
                 </>
-
               )}
-
             </div>
-
           </div>
 
-          {/* =================================================
-              FOOTER
-          ================================================= */}
+          {/* FOOTER */}
 
           <div className="shrink-0 border-t border-slate-800 bg-[#07140d] p-4 sm:px-6 sm:py-4">
-
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-
               {/* CANCEL */}
 
               <button
@@ -1373,7 +1430,7 @@ export default function SupplierModal({
                 Cancel
               </button>
 
-              {/* ADD ROW - ADD MODE ONLY */}
+              {/* ADD ANOTHER */}
 
               {!isEditMode && (
                 <button
@@ -1398,9 +1455,7 @@ export default function SupplierModal({
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-
                 {loading ? (
-
                   <>
                     <Loader2
                       size={18}
@@ -1415,9 +1470,7 @@ export default function SupplierModal({
                             : "s"
                         }...`}
                   </>
-
                 ) : (
-
                   <>
                     <Save size={18} />
 
@@ -1429,17 +1482,11 @@ export default function SupplierModal({
                             : "s"
                         }`}
                   </>
-
                 )}
-
               </button>
-
             </div>
-
           </div>
-
         </form>
-
       </div>
     </div>
   );

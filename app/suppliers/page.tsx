@@ -39,6 +39,8 @@ interface ApiSupplier {
   status: "Active" | "Inactive";
   totalKg?: number;
   totalValue?: number;
+  imageUrl?: string;
+  imagePublicId?: string;
 }
 
 interface ApiArea {
@@ -68,14 +70,10 @@ export default function SuppliersPage() {
 
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // =========================================
   // MOBILE SIDEBAR
-  // =========================================
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // =========================================
   // FETCH SUPPLIERS
-  // =========================================
   async function fetchSuppliers() {
     try {
       setLoading(true);
@@ -107,6 +105,10 @@ export default function SuppliersPage() {
         totalKg: Number(supplier.totalKg || 0),
         totalValue: Number(supplier.totalValue || 0),
         status: supplier.status,
+
+        // Supplier image
+        imageUrl: supplier.imageUrl || "",
+        imagePublicId: supplier.imagePublicId || "",
       }));
 
       setSuppliers(formattedSuppliers);
@@ -125,9 +127,7 @@ export default function SuppliersPage() {
     }
   }
 
-  // =========================================
   // FETCH AREAS
-  // =========================================
   async function fetchAreas() {
     try {
       setAreasLoading(true);
@@ -162,26 +162,20 @@ export default function SuppliersPage() {
     }
   }
 
-  // =========================================
   // INITIAL LOAD
-  // =========================================
   useEffect(() => {
     fetchSuppliers();
     fetchAreas();
   }, []);
 
-  // =========================================
   // GET SUPPLIERS BY AREA
-  // =========================================
   function getAreaSuppliers(areaId: string) {
     return suppliers.filter(
       (supplier) => supplier.areaId === areaId
     );
   }
 
-  // =========================================
   // ACTIVE AREAS
-  // =========================================
   const displayedAreas = useMemo(() => {
     return areas.filter((area) => {
       if (!area.status) return true;
@@ -190,18 +184,14 @@ export default function SuppliersPage() {
     });
   }, [areas]);
 
-  // =========================================
   // SELECTED AREA
-  // =========================================
   const selectedArea = useMemo(() => {
     return areas.find(
       (area) => area.areaId === selectedAreaId
     );
   }, [areas, selectedAreaId]);
 
-  // =========================================
   // SELECTED AREA SUPPLIERS
-  // =========================================
   const selectedAreaSuppliers = useMemo(() => {
     const query = search.toLowerCase().trim();
 
@@ -225,9 +215,7 @@ export default function SuppliersPage() {
     });
   }, [suppliers, selectedAreaId, search]);
 
-  // =========================================
   // OVERALL STATS
-  // =========================================
   const totalKg = suppliers.reduce(
     (sum, supplier) =>
       sum + Number(supplier.totalKg || 0),
@@ -244,27 +232,27 @@ export default function SuppliersPage() {
     (supplier) => supplier.status === "Active"
   ).length;
 
-  // =========================================
   // ADD SUPPLIER
-  // =========================================
   function openAddModal() {
     setSelectedSupplier(null);
     setError("");
     setModalOpen(true);
   }
 
-  // =========================================
   // EDIT SUPPLIER
-  // =========================================
   function openEditModal(supplier: Supplier) {
+    console.log("Selected supplier for edit:", {
+      id: supplier.id,
+      imageUrl: supplier.imageUrl,
+      imagePublicId: supplier.imagePublicId,
+    });
+
     setSelectedSupplier(supplier);
     setError("");
     setModalOpen(true);
   }
 
-  // =========================================
   // CLOSE MODAL
-  // =========================================
   function closeModal() {
     if (deleteLoading) {
       return;
@@ -274,9 +262,7 @@ export default function SuppliersPage() {
     setSelectedSupplier(null);
   }
 
-  // =========================================
   // DELETE SUPPLIER
-  // =========================================
   async function handleDelete(supplier: Supplier) {
     const confirmed = window.confirm(
       `Are you sure you want to delete "${supplier.name}" (${supplier.id})?\n\nIf this supplier has collection history, the system will keep the history and mark the supplier as Inactive instead.`
@@ -325,9 +311,7 @@ export default function SuppliersPage() {
     }
   }
 
-  // =========================================
   // SUPPLIER SAVED
-  // =========================================
   async function handleSupplierSaved() {
     setModalOpen(false);
     setSelectedSupplier(null);
@@ -335,9 +319,7 @@ export default function SuppliersPage() {
     await fetchSuppliers();
   }
 
-  // =========================================
   // EDIT DATA
-  // =========================================
   const editSupplierData: SupplierEditData | null =
     selectedSupplier
       ? {
@@ -347,25 +329,26 @@ export default function SuppliersPage() {
           areaId: selectedSupplier.areaId,
           areaName: selectedSupplier.areaName,
           village: selectedSupplier.village,
-          address: selectedSupplier.address,
+          address: selectedSupplier.address || "",
           totalKg: selectedSupplier.totalKg,
           totalValue: selectedSupplier.totalValue,
           status: selectedSupplier.status,
+
+          // Existing supplier image
+          imageUrl: selectedSupplier.imageUrl || "",
+          imagePublicId:
+            selectedSupplier.imagePublicId || "",
         }
       : null;
 
-  // =========================================
   // OPEN AREA
-  // =========================================
   function openArea(areaId: string) {
     setSelectedAreaId(areaId);
     setSearch("");
     setError("");
   }
 
-  // =========================================
   // BACK TO AREAS
-  // =========================================
   function backToAreas() {
     setSelectedAreaId("");
     setSearch("");
@@ -375,34 +358,24 @@ export default function SuppliersPage() {
   return (
     <div className="min-h-screen bg-[#020a06] text-white">
 
-      {/* =========================================
-          DASHBOARD SIDEBAR
-      ========================================= */}
+      {/* DASHBOARD SIDEBAR */}
       <Sidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
 
-      {/* =========================================
-          MAIN CONTENT
-      ========================================= */}
+      {/* MAIN CONTENT */}
       <div className="lg:ml-64">
 
-        {/* =========================================
-            DASHBOARD HEADER
-        ========================================= */}
+        {/* DASHBOARD HEADER */}
         <Header
-          onMenuClick={() =>
-            setMobileOpen(true)
-          }
+          onMenuClick={() => setMobileOpen(true)}
         />
 
         <main className="p-4 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-[1600px]">
 
-            {/* =========================================
-                PAGE HEADER
-            ========================================= */}
+            {/* PAGE HEADER */}
             <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
               <div>
                 <Link
@@ -442,9 +415,7 @@ export default function SuppliersPage() {
               </button>
             </div>
 
-            {/* =========================================
-                OVERALL STATS
-            ========================================= */}
+            {/* OVERALL STATS */}
             <div className="mb-6 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
                 <p className="text-sm text-slate-500">
@@ -493,9 +464,7 @@ export default function SuppliersPage() {
               </div>
             </div>
 
-            {/* =========================================
-                ERROR
-            ========================================= */}
+            {/* ERROR */}
             {error && (
               <div className="mb-5 flex flex-col gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-400 sm:flex-row sm:items-center sm:justify-between">
                 <span>{error}</span>
@@ -510,9 +479,7 @@ export default function SuppliersPage() {
               </div>
             )}
 
-            {/* =========================================
-                AREAS VIEW
-            ========================================= */}
+            {/* AREAS VIEW */}
             {!selectedAreaId ? (
               <>
                 <div className="mb-4 flex items-center justify-between">
@@ -586,17 +553,14 @@ export default function SuppliersPage() {
                         areaSuppliers.reduce(
                           (sum, supplier) =>
                             sum +
-                            Number(
-                              supplier.totalKg || 0
-                            ),
+                            Number(supplier.totalKg || 0),
                           0
                         );
 
                       const areaActiveSuppliers =
                         areaSuppliers.filter(
                           (supplier) =>
-                            supplier.status ===
-                            "Active"
+                            supplier.status === "Active"
                         ).length;
 
                       return (
@@ -673,9 +637,7 @@ export default function SuppliersPage() {
               </>
             ) : (
               <>
-                {/* =========================================
-                    SELECTED AREA
-                ========================================= */}
+                {/* SELECTED AREA */}
                 <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <button
@@ -694,18 +656,12 @@ export default function SuppliersPage() {
 
                       <div>
                         <h2 className="text-xl font-bold text-white sm:text-2xl">
-                          {selectedArea?.name ||
-                            selectedAreaId}
+                          {selectedArea?.name || selectedAreaId}
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          {selectedAreaSuppliers.length}{" "}
-                          supplier
-                          {selectedAreaSuppliers.length ===
-                          1
-                            ? ""
-                            : "s"}{" "}
-                          in this area
+                          {selectedAreaSuppliers.length} supplier
+                          {selectedAreaSuppliers.length === 1 ? "" : "s"} in this area
                         </p>
                       </div>
                     </div>
@@ -732,18 +688,12 @@ export default function SuppliersPage() {
                     <button
                       type="button"
                       onClick={fetchSuppliers}
-                      disabled={
-                        loading || deleteLoading
-                      }
+                      disabled={loading || deleteLoading}
                       className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-[#07140d] px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-white disabled:opacity-50"
                     >
                       <RefreshCw
                         size={17}
-                        className={
-                          loading
-                            ? "animate-spin"
-                            : ""
-                        }
+                        className={loading ? "animate-spin" : ""}
                       />
 
                       Refresh
@@ -759,9 +709,7 @@ export default function SuppliersPage() {
                   </div>
                 </div>
 
-                {/* =========================================
-                    AREA SUMMARY
-                ========================================= */}
+                {/* AREA SUMMARY */}
                 <div className="mb-6 grid gap-4 sm:grid-cols-3">
                   <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-5">
                     <p className="text-sm text-slate-500">
@@ -769,24 +717,13 @@ export default function SuppliersPage() {
                     </p>
 
                     <p className="mt-2 text-2xl font-bold text-white">
-                      {
-                        getAreaSuppliers(
-                          selectedAreaId
-                        ).length
-                      }
+                      {getAreaSuppliers(selectedAreaId).length}
                     </p>
 
                     <p className="mt-1 text-xs text-emerald-400">
-                      {
-                        getAreaSuppliers(
-                          selectedAreaId
-                        ).filter(
-                          (supplier) =>
-                            supplier.status ===
-                            "Active"
-                        ).length
-                      }{" "}
-                      active
+                      {getAreaSuppliers(selectedAreaId).filter(
+                        (supplier) => supplier.status === "Active"
+                      ).length} active
                     </p>
                   </div>
 
@@ -796,19 +733,13 @@ export default function SuppliersPage() {
                     </p>
 
                     <p className="mt-2 text-2xl font-bold text-white">
-                      {getAreaSuppliers(
-                        selectedAreaId
-                      )
+                      {getAreaSuppliers(selectedAreaId)
                         .reduce(
                           (sum, supplier) =>
-                            sum +
-                            Number(
-                              supplier.totalKg || 0
-                            ),
+                            sum + Number(supplier.totalKg || 0),
                           0
                         )
-                        .toLocaleString()}{" "}
-                      KG
+                        .toLocaleString()} KG
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
@@ -823,16 +754,10 @@ export default function SuppliersPage() {
 
                     <p className="mt-2 text-2xl font-bold text-emerald-400">
                       Rs.{" "}
-                      {getAreaSuppliers(
-                        selectedAreaId
-                      )
+                      {getAreaSuppliers(selectedAreaId)
                         .reduce(
                           (sum, supplier) =>
-                            sum +
-                            Number(
-                              supplier.totalValue ||
-                                0
-                            ),
+                            sum + Number(supplier.totalValue || 0),
                           0
                         )
                         .toLocaleString("en-LK", {
@@ -847,9 +772,7 @@ export default function SuppliersPage() {
                   </div>
                 </div>
 
-                {/* =========================================
-                    SUPPLIER TABLE
-                ========================================= */}
+                {/* SUPPLIER TABLE */}
                 {loading ? (
                   <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-16 text-center">
                     <RefreshCw
@@ -861,8 +784,7 @@ export default function SuppliersPage() {
                       Loading suppliers...
                     </p>
                   </div>
-                ) : selectedAreaSuppliers.length ===
-                  0 ? (
+                ) : selectedAreaSuppliers.length === 0 ? (
                   <div className="rounded-2xl border border-slate-800 bg-[#07140d] p-16 text-center">
                     <Users
                       size={35}
@@ -899,9 +821,7 @@ export default function SuppliersPage() {
         </main>
       </div>
 
-      {/* =========================================
-          SUPPLIER MODAL
-      ========================================= */}
+      {/* SUPPLIER MODAL */}
       <SupplierModal
         isOpen={modalOpen}
         supplier={editSupplierData}
